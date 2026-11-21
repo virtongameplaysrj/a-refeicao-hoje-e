@@ -119,6 +119,9 @@ for ($i = 0; $i -lt $titulos.Count; $i += 50) {
 function Resolve-Titulo([string]$t) { $x = $t; for ($k = 0; $k -lt 4 -and $mapa.ContainsKey($x); $k++) { $x = $mapa[$x] }; $x }
 
 $usados = @{}
+# fotos já usadas por pratos fora desta rodada não podem se repetir
+$idsAlvo = @($alvo | ForEach-Object { $_.id })
+foreach ($k in @($fotos.Keys)) { if ($idsAlvo -notcontains $k -and $fotos[$k].arquivo) { $usados[$fotos[$k].arquivo] = $true } }
 foreach ($p in $alvo) {
   if ($escolha.ContainsKey($p.id)) { continue }
   foreach ($t in $candidatosPorPrato[$p.id]) {
