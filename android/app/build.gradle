@@ -1,0 +1,50 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Assinatura: lida de um arquivo FORA do projeto (nunca vai para o Git).
+// Padrão: E:/Dev/keystores/a-refeicao-hoje-e/keystore.properties  (troque com -PassinaturaProps=caminho)
+def caminhoProps = project.findProperty('assinaturaProps') ?: 'E:/Dev/keystores/a-refeicao-hoje-e/keystore.properties'
+def propsAssinatura = new Properties()
+def arqProps = file(caminhoProps)
+if (arqProps.exists()) { arqProps.withInputStream { propsAssinatura.load(it) } }
+
+android {
+    namespace 'com.arefeicaohoje.app'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.arefeicaohoje.app'
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName '1.0.0'
+        // Endereço do site publicado no GitHub Pages (a interface vem dele)
+        buildConfigField 'String', 'SITE_URL', '"https://virtongameplaysrj.github.io/a-refeicao-hoje-e/"'
+    }
+
+    buildFeatures { buildConfig true }
+
+    signingConfigs {
+        release {
+            if (arqProps.exists()) {
+                storeFile file(propsAssinatura['storeFile'])
+                storePassword propsAssinatura['storePassword']
+                keyAlias propsAssinatura['keyAlias']
+                keyPassword propsAssinatura['keyPassword']
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (arqProps.exists()) signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

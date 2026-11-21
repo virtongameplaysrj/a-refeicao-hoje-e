@@ -1,0 +1,11 @@
+{
+  "name": "A refeição hoje é...",
+  "short_name": "Refeição hoje",
+  "lang": "pt-BR",
+  "start_url": "./#/inicio",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#23160f",
+  "theme_color": "#23160f",
+  "icons": [{ "src": "icone.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

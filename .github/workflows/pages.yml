@@ -1,0 +1,42 @@
+name: Publicar site no GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validar catálogo (12 lotes, 300 pratos, sem repetidos)
+        shell: pwsh
+        run: ./scripts/validar-lote.ps1 -Todos
+
+      - name: Conferir pratos.json
+        shell: pwsh
+        run: |
+          $p = Get-Content web/data/pratos.json -Raw -Encoding utf8 | ConvertFrom-Json
+          if ($p.Count -ne 300) { throw "pratos.json tem $($p.Count) pratos (esperado 300). Rode scripts/montar-catalogo.ps1." }
+          Write-Host "pratos.json ok: $($p.Count) pratos"
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+      - id: deploy
+        uses: actions/deploy-pages@v4

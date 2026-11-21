@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Panela de barro com vapor (área segura do ícone adaptativo: 66dp centrais de 108dp) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- vapor -->
+    <path android:strokeColor="#F7EBD9" android:strokeWidth="3" android:strokeLineCap="round"
+        android:pathData="M44,38 C40,33 48,30 44,25 M54,36 C50,31 58,28 54,23 M64,38 C60,33 68,30 64,25" />
+    <!-- tampa -->
+    <path android:fillColor="#C8653A" android:pathData="M30,52 C30,44 41,40 54,40 C67,40 78,44 78,52 Z" />
+    <path android:fillColor="#7A3014" android:pathData="M49,40 a5,3 0 1,0 10,0 a5,3 0 1,0 -10,0 Z" />
+    <!-- borda -->
+    <path android:fillColor="#9B4421" android:pathData="M27,53 a27,5 0 1,0 54,0 a27,5 0 1,0 -54,0 Z" />
+    <!-- corpo -->
+    <path android:fillColor="#B9572C" android:pathData="M29,54 L79,54 C80,66 77,74 70,79 C66,82 60,84 54,84 C48,84 42,82 38,79 C31,74 28,66 29,54 Z" />
+    <path android:fillColor="#E4925C" android:fillAlpha="0.55" android:pathData="M40,57 C38,65 40,72 45,77 L48,77 C44,71 43,64 44,57 Z" />
+    <!-- faixa pintada -->
+    <path android:strokeColor="#F7EBD9" android:strokeWidth="1.6" android:strokeAlpha="0.7"
+        android:pathData="M31,65 C36,62 40,68 45,65 C50,62 54,68 59,65 C64,62 68,68 73,65 C75,64 76,64 77,65" />
+</vector>

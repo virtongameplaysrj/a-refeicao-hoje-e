@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sem conexão</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #23160f; color: #f7ebd9; font-family: system-ui, sans-serif; }
+  main { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px; box-sizing: border-box; }
+  h1 { font-family: Georgia, serif; color: #f2c14e; }
+  button { margin-top: 18px; border: 0; border-radius: 14px; padding: 14px 24px; font-size: 18px; font-weight: 600; background: #c8553d; color: #fff; }
+</style>
+</head>
+<body>
+<main>
+  <div style="font-size:64px">📡</div>
+  <h1>Sem conexão</h1>
+  <p>Na primeira vez o app precisa de internet para baixar os pratos.<br>Depois ele funciona mesmo offline.</p>
+  <button onclick="history.length > 1 ? history.back() : location.reload()">Tentar de novo</button>
+</main>
+</body>
+</html>
