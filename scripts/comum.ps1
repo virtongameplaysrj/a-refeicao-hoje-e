@@ -10,22 +10,24 @@ $PastaFoto = Join-Path $Raiz 'web/fotos'
 
 # Arquivo do lote => categoria e quantidade esperada
 $Categorias = [ordered]@{
-  '01-classicos'   = @{ nome = 'Clássicos do dia a dia';        qtd = 25 }
-  '02-bovina'      = @{ nome = 'Carne bovina';                  qtd = 30 }
-  '03-aves'        = @{ nome = 'Frango e aves';                 qtd = 30 }
-  '04-suina'       = @{ nome = 'Carne suína';                   qtd = 25 }
-  '05-peixes'      = @{ nome = 'Peixes e frutos do mar';        qtd = 30 }
-  '06-cozidos'     = @{ nome = 'Cozidos e pratos de panela';    qtd = 25 }
-  '07-sopas'       = @{ nome = 'Sopas e caldos';                qtd = 20 }
-  '08-massas'      = @{ nome = 'Massas, tortas e forno';        qtd = 25 }
-  '09-vegetarianos'= @{ nome = 'Vegetarianos e leguminosas';    qtd = 25 }
-  '10-salgados'    = @{ nome = 'Salgados e comida de rua';      qtd = 25 }
-  '11-cafe'        = @{ nome = 'Café da manhã e lanche';        qtd = 20 }
-  '12-sobremesas'  = @{ nome = 'Sobremesas';                    qtd = 20 }
+  '01-classicos'   = @{ nome = 'Clássicos do dia a dia';        qtd = 11 }
+  '02-bovina'      = @{ nome = 'Carne bovina';                  qtd = 17 }
+  '03-aves'        = @{ nome = 'Frango e aves';                 qtd = 13 }
+  '04-suina'       = @{ nome = 'Carne suína';                   qtd = 11 }
+  '05-peixes'      = @{ nome = 'Peixes e frutos do mar';        qtd = 20 }
+  '06-cozidos'     = @{ nome = 'Cozidos e pratos de panela';    qtd = 8 }
+  '07-sopas'       = @{ nome = 'Sopas e caldos';                qtd = 10 }
+  '08-massas'      = @{ nome = 'Massas, tortas e forno';        qtd = 10 }
+  '09-vegetarianos'= @{ nome = 'Vegetarianos e leguminosas';    qtd = 8 }
+  '10-salgados'    = @{ nome = 'Salgados e comida de rua';      qtd = 20 }
+  '11-cafe'        = @{ nome = 'Café da manhã e lanche';        qtd = 14 }
+  '12-sobremesas'  = @{ nome = 'Sobremesas';                    qtd = 18 }
 }
-$TotalEsperado = 300
+$TotalEsperado = 160
 
-$Regioes     = @('Norte','Nordeste','Centro-Oeste','Sudeste','Sul')
+$Regioes     = @('São Paulo','Minas Gerais','Rio de Janeiro','Santos')
+# Quantos pratos cada lugar deve ter no catálogo
+$MetaRegiao  = @{ 'São Paulo' = 50; 'Minas Gerais' = 50; 'Rio de Janeiro' = 40; 'Santos' = 20 }
 $Refeicoes   = @{ cafe='Café da manhã'; almoco='Almoço'; jantar='Jantar'; lanche='Lanche'; sobremesa='Sobremesa' }
 $Dificuldade = @{ F='Fácil'; M='Média'; D='Difícil' }
 $Custo       = @{ '1'='Barato'; '2'='Médio'; '3'='Caro' }

@@ -10,6 +10,7 @@ const CORES = ['#c8553d', '#f2c14e', '#6aa84f', '#8c5a3c', '#e07a5f', '#d9a441',
 const ESCURAS = new Set(['#c8553d', '#6aa84f', '#8c5a3c', '#4f8a3c', '#a8432e', '#e07a5f']);
 const PONTEIRO = -Math.PI / 2;
 const AUTO_PARAR = 15000;
+const FATIAS = 30;
 const ease3 = (x) => 1 - Math.pow(1 - x, 3);
 
 /**
@@ -39,9 +40,12 @@ export function abrirRoleta({ pool, pesoDe, titulo = 'Sorteando...', aviso = '',
 
   function montarSegmentos() {
     vencedor = sortear(candidatos, pesoDe);
+    // Fatias novas a cada giro: o vencedor + 29 pratos sorteados na hora entre os candidatos.
     const outros = embaralhar(candidatos.filter((p) => p !== vencedor));
-    let lista = [vencedor, ...outros.slice(0, 11)];
-    while (lista.length < 8) lista = lista.concat(lista).slice(0, 8);   // poucos pratos: repete
+    let lista = [vencedor, ...outros.slice(0, FATIAS - 1)];
+    // Poucos pratos (filtros apertados): repete os outros, embaralhados, até completar a roda.
+    for (let i = 0; lista.length < FATIAS && outros.length; i++) lista.push(outros[i % outros.length]);
+    while (lista.length < 8) lista.push(vencedor);
     segs = embaralhar(lista);
     segs.idxVencedor = segs.indexOf(vencedor);
   }
@@ -73,9 +77,11 @@ export function abrirRoleta({ pool, pesoDe, titulo = 'Sorteando...', aviso = '',
       g.save(); g.rotate(a0 + a / 2);
       g.fillStyle = ESCURAS.has(cor) ? '#fff8ee' : '#2a1a0e';
       g.textAlign = 'right'; g.textBaseline = 'middle';
-      const fs = clamp(r * 0.075, 11, 17);
+      // A letra não pode ser mais alta que a fatia na ponta de dentro do texto (com 30 fatias elas são finas).
+      const max = r * 0.56, interno = r - 34 - max;
+      const fs = clamp(Math.min(r * 0.075, interno * a * 0.95), 8, 17);
       g.font = `700 ${fs}px system-ui, sans-serif`;
-      let nome = segs[i].nome; const max = r * 0.62;
+      let nome = segs[i].nome;
       while (g.measureText(nome).width > max && nome.length > 4) nome = nome.slice(0, -2).trimEnd() + '…';
       g.fillText(nome, r - 34, 0);
       g.font = `${fs * 1.3}px system-ui`; g.fillText(categoriaPorNome(segs[i].categoria).icone, r - 8, 0);

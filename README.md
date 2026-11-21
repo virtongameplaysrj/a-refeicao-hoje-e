@@ -1,6 +1,6 @@
 # 🍽️ A refeição hoje é...
 
-App Android, em português do Brasil, que tira de você o peso de escolher o que comer: sorteia entre **300 pratos típicos brasileiros** (das 5 regiões) e mostra a receita completa, com modo "Cozinhando agora", timers, lista de compras e histórico.
+App Android, em português do Brasil, que tira de você o peso de escolher o que comer: sorteia entre **160 pratos típicos** de São Paulo, Minas Gerais, Rio de Janeiro e Santos e mostra a receita completa, com modo "Cozinhando agora", timers, lista de compras e histórico.
 
 - **Site (a interface do app):** https://virtongameplaysrj.github.io/a-refeicao-hoje-e/
 - **APK:** pasta [`entregas/`](entregas/) ou gerado com as instruções abaixo.
@@ -11,7 +11,7 @@ App Android, em português do Brasil, que tira de você o peso de escolher o que
 |---|---|
 | `web/` | A interface inteira, em HTML/CSS/JS puro (sem framework). Publicada no **GitHub Pages** a cada `git push` por um **GitHub Actions** — as mudanças chegam ao celular sem reinstalar o app. |
 | `android/` | Uma **casca WebView** (um único `MainActivity.java`) que abre o site. O botão Voltar do Android volta no histórico do WebView. Uma ponte JS (`window.AndroidApp`) mantém a **tela acesa** enquanto uma receita ou o modo Cozinhando estão abertos, compartilha a lista de compras, copia o backup e vibra nos alarmes. |
-| `dados/lotes/` | Os 300 pratos, escritos **um arquivo por categoria** (12 lotes). |
+| `dados/lotes/` | Os 160 pratos, escritos **um arquivo por categoria** (12 lotes). |
 | `scripts/` | Scripts **PowerShell** que validam os lotes, montam o `web/data/pratos.json` e buscam as fotos no Wikimedia Commons. |
 
 Os dados de quem usa ficam **só no aparelho** (`localStorage`), sem servidor: favoritos e notas, histórico, pratos ocultos, pratos adicionados à mão, lista de compras, filtros e a sessão "Cozinhando agora". Em **Meu histórico → Backup** dá para copiar tudo como texto e restaurar colando.
@@ -106,18 +106,18 @@ e abra http://localhost:8765/ no navegador.
 Os pratos **não** são editados direto no `web/data/pratos.json`: ele é gerado a partir dos lotes em `dados/lotes/` (um por categoria). Cada lote usa um formato compacto, mais fácil de escrever:
 
 ```json
-{"n":"Baião de dois","r":"Nordeste","ref":["almoco","jantar"],"t":60,"d":"M","c":2,"x":"g","p":6,
- "desc":"Arroz e feijão-de-corda cozidos juntos com carne de sol, queijo coalho e nata.",
- "i":["1|xícara|feijão-de-corda","300|g|carne de sol dessalgada","1||cebola picada","|a gosto|sal"],
- "s":["Cozinhe o feijão...","Frite a carne...","Junte o arroz..."],
- "dica":"Use o caldo do próprio feijão para cozinhar o arroz.",
- "cur":"O nome foi popularizado pela música de Luiz Gonzaga."}
+{"n":"Feijão tropeiro","r":"Minas Gerais","ref":["almoco","jantar"],"t":60,"d":"M","c":2,"x":"lg","p":6,
+ "desc":"Feijão misturado com farinha de mandioca, torresmo, linguiça, ovos e couve.",
+ "i":["2|xícara|feijão carioca cozido","200|g|linguiça","1||cebola picada","|a gosto|sal"],
+ "s":["Cozinhe o feijão...","Frite a linguiça...","Junte a farinha..."],
+ "dica":"Junte a farinha aos poucos, com o fogo baixo.",
+ "cur":"Era a comida dos tropeiros que levavam mercadorias pelo interior de Minas."}
 ```
 
 | Campo | Significado | Valores |
 |---|---|---|
 | `n` | nome (o `id` é gerado dele: `baiao-de-dois`) | texto |
-| `r` | região | `Norte`, `Nordeste`, `Centro-Oeste`, `Sudeste`, `Sul` |
+| `r` | região | `São Paulo`, `Minas Gerais`, `Rio de Janeiro`, `Santos` |
 | `ref` | refeições | `cafe`, `almoco`, `jantar`, `lanche`, `sobremesa` |
 | `t` | tempo de preparo em minutos | número |
 | `d` | dificuldade | `F` fácil, `M` média, `D` difícil |
@@ -135,11 +135,11 @@ Depois de editar:
 ```powershell
 .\scripts\validar-lote.ps1 -Lote 02-bovina      # confere um lote (quantidade, campos, repetidos no catálogo inteiro)
 .\scripts\buscar-fotos.ps1                      # busca foto só para pratos novos
-.\scripts\montar-catalogo.ps1                   # valida tudo, exige 300 pratos e grava web/data/pratos.json
+.\scripts\montar-catalogo.ps1                   # valida tudo, exige 160 pratos e grava web/data/pratos.json
 git add -A; git commit -m "Novo prato"; git push
 ```
 
-Regras do validador: quantidade certa por categoria (a soma tem que dar **exatamente 300** — para incluir um prato, troque por outro ou ajuste `$Categorias` em `scripts/comum.ps1`), todos os campos preenchidos, ao menos 3 ingredientes e 3 passos, unidades no padrão e **nenhum nome repetido** no catálogo inteiro (comparando sem acentos, artigos e enfeites como "caseiro", "tradicional", "da vovó"). O `montar-catalogo.ps1` também confere o equilíbrio entre regiões.
+Regras do validador: quantidade certa por categoria (a soma tem que dar **exatamente 160** — para incluir um prato, troque por outro ou ajuste `$Categorias` em `scripts/comum.ps1`), todos os campos preenchidos, ao menos 3 ingredientes e 3 passos, unidades no padrão e **nenhum nome repetido** no catálogo inteiro (comparando sem acentos, artigos e enfeites como "caseiro", "tradicional", "da vovó"). O `montar-catalogo.ps1` também confere a meta de cada lugar (`$MetaRegiao`: 50 SP, 50 MG, 40 RJ, 20 Santos).
 
 **Pratos só seus** não precisam de nada disso: use "＋ Meu prato" no app (ficam no aparelho e entram no backup).
 

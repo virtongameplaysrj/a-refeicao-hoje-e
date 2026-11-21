@@ -23,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Validar catálogo (12 lotes, 300 pratos, sem repetidos)
+      - name: Validar catálogo (12 lotes, 160 pratos, sem repetidos)
         shell: pwsh
         run: ./scripts/validar-lote.ps1 -Todos
 
@@ -31,7 +31,7 @@ jobs:
         shell: pwsh
         run: |
           $p = Get-Content web/data/pratos.json -Raw -Encoding utf8 | ConvertFrom-Json
-          if ($p.Count -ne 300) { throw "pratos.json tem $($p.Count) pratos (esperado 300). Rode scripts/montar-catalogo.ps1." }
+          if ($p.Count -ne 160) { throw "pratos.json tem $($p.Count) pratos (esperado 160). Rode scripts/montar-catalogo.ps1." }
           Write-Host "pratos.json ok: $($p.Count) pratos"
 
       - uses: actions/configure-pages@v5

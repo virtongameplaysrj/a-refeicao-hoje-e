@@ -1,4 +1,4 @@
-// Catálogo: os 300 pratos do pratos.json + os pratos adicionados à mão; categorias, fotos e filtros.
+// Catálogo: os 160 pratos do pratos.json + os pratos adicionados à mão; categorias, fotos e filtros.
 import { ler } from './store.js';
 import { normalizar } from './util.js';
 
@@ -97,7 +97,7 @@ export const GRUPOS_FILTRO = [
   { chave: 'tempo', titulo: 'Tempo de preparo', unico: true, opcoes: [['30', '⚡ Até 30 min'], ['60', '⏱️ Até 1 hora'], ['mais', '🐢 Mais de 1 hora']] },
   { chave: 'dificuldade', titulo: 'Dificuldade', opcoes: [['Fácil', 'Fácil'], ['Média', 'Média'], ['Difícil', 'Difícil']] },
   { chave: 'custo', titulo: 'Custo', opcoes: [['Barato', '$ Barato'], ['Médio', '$$ Médio'], ['Caro', '$$$ Caro']] },
-  { chave: 'regiao', titulo: 'Região', opcoes: [['Norte', 'Norte'], ['Nordeste', 'Nordeste'], ['Centro-Oeste', 'Centro-Oeste'], ['Sudeste', 'Sudeste'], ['Sul', 'Sul']] },
+  { chave: 'regiao', titulo: 'Região', opcoes: [['São Paulo', 'São Paulo'], ['Minas Gerais', 'Minas Gerais'], ['Rio de Janeiro', 'Rio de Janeiro'], ['Santos', 'Santos']] },
   { chave: 'restricoes', titulo: 'Restrições', todos: true, opcoes: [['vegetariano', '🌱 Vegetariano'], ['sem-lactose', '🥛 Sem lactose'], ['sem-gluten', '🌾 Sem glúten']] },
 ];
 
