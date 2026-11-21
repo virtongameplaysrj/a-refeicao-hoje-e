@@ -37,7 +37,27 @@ O site tem um *service worker* "rede primeiro": com internet sempre pega a vers�
 
 ---
 
-## Instalar o app no celular
+## Instalar e atualizar pelo Obtainium (recomendado)
+
+O [Obtainium](https://github.com/ImranR98/Obtainium) instala o APK direto das **Releases** deste repositório e avisa quando sai versão nova.
+
+1. Instale o Obtainium no celular (pelo F-Droid ou pelas releases do GitHub dele).
+2. No Obtainium, toque em **Adicionar app** e cole: `https://github.com/virtongameplaysrj/a-refeicao-hoje-e`
+3. Toque em **Adicionar** e depois em **Instalar**. Permita "instalar apps desta fonte" quando o Android pedir.
+
+Daí em diante o Obtainium confere as releases e oferece a atualização sozinho.
+
+> Telas e pratos novos **não** precisam de atualização do APK: chegam pelo site. Release nova só sai quando a parte Android muda.
+
+**Publicar uma nova versão do APK** (quem mantém o app):
+
+```powershell
+.\scripts\publicar-apk.ps1 -Notas "O que mudou nesta versão"
+```
+
+O script sobe a versão (`versionCode`/`versionName`), compila, confere a assinatura, faz commit e cria a release `vX.Y.Z` com o APK.
+
+## Instalar o app no celular sem o Obtainium
 
 1. Copie `entregas/a-refeicao-hoje-e.apk` para o celular (cabo, Google Drive, WhatsApp para você mesmo...).
 2. Abra o arquivo e permita "instalar apps desta fonte" quando o Android pedir.
