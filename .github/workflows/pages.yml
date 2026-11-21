@@ -21,7 +21,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Validar catálogo (12 lotes, 300 pratos, sem repetidos)
         shell: pwsh
@@ -35,7 +35,7 @@ jobs:
           Write-Host "pratos.json ok: $($p.Count) pratos"
 
       - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v4
         with:
           path: web
       - id: deploy

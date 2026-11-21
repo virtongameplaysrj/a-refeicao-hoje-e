@@ -76,7 +76,7 @@ img { display: block; max-width: 100%; }
 .grande .rotulo b { display: block; font-family: var(--titulo); font-size: 28px; }
 .grande .rotulo span { color: var(--suave); font-size: 15px; }
 .colagem { position: absolute; inset: 0; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 2px; }
-.colagem img { width: 100%; height: 100%; object-fit: cover; }
+.colagem img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 38%; }
 .colagem.um { grid-template-columns: 1fr; grid-template-rows: 1fr; }
 
 /* Listas e cartões */

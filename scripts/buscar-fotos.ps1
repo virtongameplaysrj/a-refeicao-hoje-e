@@ -5,7 +5,9 @@
   Uso:  .\scripts\buscar-fotos.ps1               (só os pratos ainda sem registro)
         .\scripts\buscar-fotos.ps1 -Refazer      (refaz todos)
         .\scripts\buscar-fotos.ps1 -Ids pato-no-tucupi,tacaca
-        .\scripts\buscar-fotos.ps1 -SemCommons   (pula a busca extra no Commons)
+        .\scripts\buscar-fotos.ps1 -SemCommons   (pula a busca extra no Commons — rápido)
+        .\scripts\buscar-fotos.ps1 -Baixar       (traz para web/fotos as que ficaram como link por causa do limite)
+        .\scripts\buscar-fotos.ps1 -SoSemFoto    (tenta de novo só os pratos que ainda estão sem foto)
 
   Como funciona (poucas requisições, para não esbarrar no limite da Wikimedia):
     1. Para cada prato gera títulos candidatos ("Feijoada completa" -> "Feijoada completa", "Feijoada")
@@ -19,7 +21,7 @@
   ("" = sem foto; o app usa a arte gerada com o ícone da categoria e degradê).
   Ao final rode .\scripts\montar-catalogo.ps1 para gravar as fotos no pratos.json.
 #>
-param([switch]$Refazer, [string[]]$Ids, [switch]$SemCommons)
+param([switch]$Refazer, [string[]]$Ids, [switch]$SemCommons, [switch]$SoSemFoto, [switch]$Baixar)
 . "$PSScriptRoot\comum.ps1"
 Add-Type -AssemblyName System.Drawing
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -63,10 +65,12 @@ $manual = @{}
 if (Test-Path $ArqManual) { (Read-Json $ArqManual).PSObject.Properties | ForEach-Object { $manual[$_.Name] = [string]$_.Value } }
 
 $alvo = @($pratos | Where-Object {
-  if ($Ids) { $Ids -contains $_.id } elseif ($Refazer) { $true } else { -not $fotos.Contains($_.id) }
+  if ($Baixar) { $false } elseif ($Ids) { $Ids -contains $_.id } elseif ($Refazer) { $true }
+  elseif ($SoSemFoto) { -not $fotos.Contains($_.id) -or -not $fotos[$_.id].url }
+  else { -not $fotos.Contains($_.id) }
 })
 Write-Host "Pratos a processar: $($alvo.Count)" -ForegroundColor Cyan
-if (-not $alvo.Count) { return }
+if (-not $alvo.Count -and -not $Baixar) { return }
 
 # ---------- 1. Títulos candidatos, consultados em lotes de 50 ----------
 function Get-Titulos([string]$nome) {
@@ -180,7 +184,12 @@ function Save-Retrato([string]$urlImg, [string]$destino) {
     $baixou = $false
     for ($t = 0; $t -lt 5 -and -not $baixou; $t++) {
       Start-Sleep -Milliseconds 1200
-      try { Invoke-WebRequest -Uri $urlImg -UserAgent $UA -OutFile $tmp -UseBasicParsing -TimeoutSec 60; $baixou = $true } catch { Wait-Limite $_ $t }
+      try { Invoke-WebRequest -Uri $urlImg -UserAgent $UA -OutFile $tmp -UseBasicParsing -TimeoutSec 60; $baixou = $true }
+      catch {
+        $cod = 0; try { $cod = [int]$_.Exception.Response.StatusCode } catch {}
+        if ($cod -eq 429 -and -not $paciente) { return 'limite' }   # não espera minutos: guarda o link da miniatura
+        Wait-Limite $_ $t
+      }
     }
     if (-not $baixou) { throw 'download falhou' }
     $src = [Drawing.Image]::FromFile($tmp)
@@ -198,19 +207,25 @@ function Save-Retrato([string]$urlImg, [string]$destino) {
       $bmp.Save($destino, $Codec, $par)
       $g.Dispose(); $bmp.Dispose()
     } finally { $src.Dispose() }
-    $true
-  } catch { Write-Host "    falha: $($_.Exception.Message)" -ForegroundColor DarkYellow; $false }
+    'ok'
+  } catch { Write-Host "    falha: $($_.Exception.Message)" -ForegroundColor DarkYellow; 'falha' }
   finally { Remove-Item $tmp -ErrorAction SilentlyContinue }
 }
 
-$ok = 0; $sem = 0; $n = 0
+$paciente = [bool]$Baixar
+$ok = 0; $sem = 0; $remotas = 0; $n = 0
 foreach ($p in $alvo) {
   $n++
   $arq = $escolha[$p.id]; $dados = if ($arq) { $info[$arq] } else { $null }
   $dest = Join-Path $PastaFoto "$($p.id).jpg"
-  if ($dados -and (Save-Retrato $dados.thumb $dest)) {
+  $res = if ($dados) { Save-Retrato $dados.thumb $dest } else { 'falha' }
+  if ($res -eq 'ok') {
     $fotos[$p.id] = [ordered]@{ url = "fotos/$($p.id).jpg"; autor = $dados.autor; licenca = $dados.licenca; fonte = $dados.fonte; arquivo = $arq }
     $ok++; Write-Host ("[{0}/{1}] {2} <- {3}" -f $n, $alvo.Count, $p.nome, $arq) -ForegroundColor Green
+  } elseif ($res -eq 'limite') {
+    # Limite da Wikimedia: usa a miniatura hospedada no Commons (960 px); rode -Baixar depois para trazer para web/fotos
+    $fotos[$p.id] = [ordered]@{ url = $dados.thumb; autor = $dados.autor; licenca = $dados.licenca; fonte = $dados.fonte; arquivo = $arq; remoto = $true }
+    $remotas++; Write-Host ("[{0}/{1}] {2} <- {3} (link remoto)" -f $n, $alvo.Count, $p.nome, $arq) -ForegroundColor Cyan
   } else {
     $fotos[$p.id] = [ordered]@{ url = ''; autor = ''; licenca = ''; fonte = ''; arquivo = '' }
     Remove-Item $dest -ErrorAction SilentlyContinue
@@ -218,4 +233,18 @@ foreach ($p in $alvo) {
   }
   Write-Json $fotos $ArqFotos 4
 }
-Write-Host "Concluído: $ok com foto, $sem com arte gerada. Rode montar-catalogo.ps1 em seguida." -ForegroundColor Cyan
+
+# ---------- -Baixar: converte links remotos em arquivos locais 600x900, com paciência ----------
+if ($Baixar) {
+  $pend = @($fotos.Keys | Where-Object { $fotos[$_].remoto })
+  Write-Host "Baixando $($pend.Count) fotos que estavam como link remoto..."
+  foreach ($id in $pend) {
+    $f = $fotos[$id]; $dest = Join-Path $PastaFoto "$id.jpg"
+    if ((Save-Retrato $f.url $dest) -eq 'ok') {
+      $fotos[$id] = [ordered]@{ url = "fotos/$id.jpg"; autor = $f.autor; licenca = $f.licenca; fonte = $f.fonte; arquivo = $f.arquivo }
+      $ok++; Write-Host "  $id ok" -ForegroundColor Green
+      Write-Json $fotos $ArqFotos 4
+    }
+  }
+}
+Write-Host "Concluído: $ok foto(s) local(is), $remotas por link remoto, $sem com arte gerada. Rode montar-catalogo.ps1 em seguida." -ForegroundColor Cyan

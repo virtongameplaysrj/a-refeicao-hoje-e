@@ -15,11 +15,13 @@ self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
-  if (url.origin !== location.origin) return;                // Wikipédia, YouTube etc.: direto na rede
-  if (url.pathname.includes('/fotos/')) {
+  const fotoWikimedia = /(^|\.)wikimedia\.org$/.test(url.hostname) && req.destination === 'image';
+  if (url.origin !== location.origin && !fotoWikimedia) return;   // Wikipédia, YouTube etc.: direto na rede
+  if (url.pathname.includes('/fotos/') || fotoWikimedia) {
     e.respondWith(caches.open(CACHE).then(async (c) => {
       const salvo = await c.match(req);
-      const rede = fetch(req).then((r) => { if (r.ok) c.put(req, r.clone()); return r; }).catch(() => salvo);
+      // fotos de outro domínio chegam "opacas" (status 0): também valem para o cache
+      const rede = fetch(req).then((r) => { if (r.ok || r.type === 'opaque') c.put(req, r.clone()); return r; }).catch(() => salvo);
       return salvo || rede;
     }));
     return;
