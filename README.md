@@ -24,14 +24,14 @@ O site tem um *service worker* "rede primeiro": com internet sempre pega a vers�
 2. **Início** — "Eu gosto", "Todas as categorias", "Meu histórico", "Lista de compras" e aviso de preparo em andamento.
 3. **Eu gosto** — favoritos com nota de 1 a 5 ⭐ e anotação; busca que ignora acentos; dá para digitar um prato fora do catálogo; "🎲 Sortear entre meus favoritos". O texto da busca e as anotações são salvos enquanto você digita.
 4. **Categorias** — 12 categorias com colagem de fotos, "🎲 Me surpreenda" e "＋ Meu prato" (**segure** esse botão para restaurar pratos ocultos).
-5. **Prateleira** — palco com a foto (zoom lento "Ken Burns" ao parar ~0,9 s), carrossel 3D arrastável com inércia, filtros (refeição, tempo, dificuldade, custo, região, vegetariano/sem lactose/sem glúten), "Ver receita", "Sortear daqui", "Ocultar prato" e link de vídeo no YouTube.
+5. **Prateleira** — palco com a foto (zoom lento "Ken Burns" ao parar ~0,9 s), carrossel 3D arrastável com inércia, filtros (tipo, refeição, tempo, dificuldade, custo, região, vegetariano/sem lactose/sem glúten), "Ver receita", "Sortear daqui", "Ocultar prato" e link de vídeo no YouTube.
 6. **Roleta** — sobe com rufar de tambor, gira com marchinha de circo; toque (ou 15 s) e ela para **exatamente** no prato sorteado. "Vou fazer este!" ou "Hoje não, escolha outro". Os filtros ativos valem para o sorteio.
 7. **Receita** — porções que recalculam as quantidades, ingredientes, passos, dica do chef e curiosidade.
 8. **Cozinhando agora** — cronômetro que continua com o app fechado (guarda a hora de início), um passo por vez em letra grande, timers automáticos quando o passo cita um tempo ("asse por 40 minutos") com alarme sonoro, "✅ Terminei" com nota; mais de 4 h pergunta "Esqueceu de terminar?".
 9. **Lista de compras** — ingredientes somados (ou por receita), caixinhas, "Limpar marcados" e "Compartilhar como texto".
 10. **Meu histórico** — refeições, notas, quantas vezes fez cada prato e backup.
 
-**Sorteio inteligente:** no catálogo, prato nunca feito tem 3× mais chance; nos favoritos, chance ∝ estrelas² e cresce com o tempo sem fazer (rodízio). "Hoje não" derruba a chance por 3 dias. Prato feito não volta por 7 dias e o sorteado fica fora das 3 rodadas seguintes.
+**Sorteio inteligente:** o "Me surpreenda" e o sorteio dos favoritos usam só **pratos principais** (arroz, feijão, couve, farofa e petiscos ficam de fora); marcando café/lanche entram lanches e petiscos, marcando sobremesa entram os doces, e o filtro **Tipo** escolhe à mão. O "Sortear daqui" de uma categoria usa tudo o que está nela. No catálogo, prato nunca feito tem 3× mais chance; nos favoritos, chance ∝ estrelas² e cresce com o tempo sem fazer (rodízio). "Hoje não" derruba a chance por 3 dias. Prato feito não volta por 7 dias e o sorteado fica fora das 3 rodadas seguintes.
 
 **Sons:** todos sintetizados na hora com Web Audio (rufar, marchinha original, tique da roleta, ta-dá, chiado da panela, alarme) — nenhum arquivo de áudio.
 
@@ -106,7 +106,7 @@ e abra http://localhost:8765/ no navegador.
 Os pratos **não** são editados direto no `web/data/pratos.json`: ele é gerado a partir dos lotes em `dados/lotes/` (um por categoria). Cada lote usa um formato compacto, mais fácil de escrever:
 
 ```json
-{"n":"Feijão tropeiro","r":"Minas Gerais","ref":["almoco","jantar"],"t":60,"d":"M","c":2,"x":"lg","p":6,
+{"n":"Feijão tropeiro","r":"Minas Gerais","ref":["almoco","jantar"],"t":60,"d":"M","c":2,"x":"lg","p":6,"tp":"A",
  "desc":"Feijão misturado com farinha de mandioca, torresmo, linguiça, ovos e couve.",
  "i":["2|xícara|feijão carioca cozido","200|g|linguiça","1||cebola picada","|a gosto|sal"],
  "s":["Cozinhe o feijão...","Frite a linguiça...","Junte a farinha..."],
@@ -124,6 +124,7 @@ Os pratos **não** são editados direto no `web/data/pratos.json`: ele é gerado
 | `c` | custo | `1` barato, `2` médio, `3` caro |
 | `x` | restrições atendidas | letras juntas: `v` vegetariano, `l` sem lactose, `g` sem glúten (ex.: `"vlg"`, ou `""`) |
 | `p` | rendimento (porções) | número |
+| `tp` | papel na refeição | `P` prato principal, `A` acompanhamento, `E` petisco/porção, `L` lanche/salgado, `D` doce, `B` bebida |
 | `i` | ingredientes: `quantidade\|unidade\|item` | quantidade `2`, `1/2`, `1 1/2` ou vazio; unidade vazia = contável ("3 ovos") |
 | `s` | passos (mínimo 3) | textos |
 | `desc`, `dica`, `cur` | descrição, dica do chef, curiosidade | textos |

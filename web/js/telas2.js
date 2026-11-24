@@ -1,7 +1,7 @@
 // Telas: Receita, Cozinhando agora, Lista de compras, Meu histórico, Meu prato.
 import { h, trocar, normalizar, toast, textoIngrediente, formatarMinutos, formatarRelogio, formatarData, copiarTexto, compartilharTexto, clamp } from './util.js';
 import { ler, gravar, alterar, favorito, favoritar, desfavoritar, registrarRefeicao, exportarBackup, importarBackup } from './store.js';
-import { CATEGORIAS, MEUS, categoriaPorNome, porId, reindexar, meusPratos, fotoDe } from './catalogo.js';
+import { CATEGORIAS, MEUS, categoriaPorNome, porId, reindexar, meusPratos, fotoDe, tipoDe, ROTULO_TIPO, TIPOS } from './catalogo.js';
 import { dialogo, confirmar } from './modal.js';
 import { temposNoPasso, iniciarCozinha, criarTimer, removerTimer, pararAlarme, timerTocando } from './cozinha.js';
 import { topo, imgPrato, estrelasEl, creditoFoto, linkYoutube } from './telas.js';
@@ -39,6 +39,7 @@ export function telaReceita(id) {
     h('h1', null, p.nome),
     h('div', { class: 'etiquetas' },
       h('button', { class: 'etq', style: { border: 0, cursor: 'pointer' }, onClick: () => ir('cat/' + cat.slug) }, `${cat.icone} ${cat.nome}`),
+      tipoDe(p) !== 'principal' && h('span', { class: 'etq' }, ROTULO_TIPO[tipoDe(p)]),
       p.regiao && h('span', { class: 'etq' }, `📍 ${p.regiao}`),
       (p.refeicao || []).map((r) => h('span', { class: 'etq' }, r)),
       (p.restricoes || []).map((r) => h('span', { class: 'etq verde' }, ROT_RESTR[r] || r))),
@@ -346,7 +347,7 @@ export function telaMeuPrato(id) {
   const existente = id ? meusPratos().find((p) => p.id === id) : null;
   const rasc = ler('rascunhoMeuPrato');
   const base = rasc && rasc.idEditado === (id || null) ? rasc : existente ? {
-    nome: existente.nome, categoria: existente.categoria, foto: existente.foto?.url || '', fotoFonte: existente.foto?.fonte || '', youtube: existente.youtube || '',
+    nome: existente.nome, categoria: existente.categoria, tipo: tipoDe(existente), foto: existente.foto?.url || '', fotoFonte: existente.foto?.fonte || '', youtube: existente.youtube || '',
     tempo: existente.tempoMin || '', rendimento: existente.rendimento || 2,
     ingredientes: existente.ingredientes.map(ingredienteParaLinha).join('\n'), passos: existente.passos.join('\n'),
   } : { nome: '', categoria: CATEGORIAS[0].nome, foto: '', fotoFonte: '', youtube: '', tempo: '', rendimento: 4, ingredientes: '', passos: '' };
@@ -362,6 +363,8 @@ export function telaMeuPrato(id) {
   };
   const sel = h('select', { class: 'campo' }, [...CATEGORIAS, MEUS].map((c) => h('option', { value: c.nome, selected: c.nome === dados.categoria }, `${c.icone} ${c.nome}`)));
   sel.addEventListener('change', () => { dados.categoria = sel.value; salvarRasc(); });
+  const selTipo = h('select', { class: 'campo' }, TIPOS.map(([v, rot]) => h('option', { value: v, selected: v === (dados.tipo || 'principal') }, rot)));
+  selTipo.addEventListener('change', () => { dados.tipo = selTipo.value; salvarRasc(); });
 
   const previa = h('img', { class: 'miniatura', style: { width: '96px', height: '128px' }, alt: 'Foto escolhida' });
   const pintarPrevia = () => { previa.src = dados.foto || fotoDe({ categoria: dados.categoria, foto: { url: '' } }); };
@@ -390,7 +393,7 @@ export function telaMeuPrato(id) {
     if (!nome) { toast('Dê um nome ao prato'); return; }
     const novoId = id || 'meu-' + Date.now().toString(36);
     const prato = {
-      id: novoId, nome, categoria: dados.categoria || MEUS.nome,
+      id: novoId, nome, categoria: dados.categoria || MEUS.nome, tipo: dados.tipo || 'principal',
       foto: { url: (dados.foto || '').trim(), autor: dados.fotoFonte ? 'Wikipédia' : '', licenca: '', fonte: dados.fotoFonte || '' },
       youtube: (dados.youtube || '').trim(), tempoMin: parseInt(dados.tempo, 10) || null, rendimento: parseInt(dados.rendimento, 10) || 2,
       ingredientes: (dados.ingredientes || '').split('\n').map((l) => l.trim()).filter(Boolean).map(lerIngrediente),
@@ -409,6 +412,7 @@ export function telaMeuPrato(id) {
     rasc && rasc.idEditado === (id || null) ? h('div', { class: 'filtros-ativos' }, h('span', null, '📝 Rascunho recuperado'), h('button', { class: 'btn pequeno', onClick: descartar }, 'Descartar')) : null,
     h('label', { class: 'rot' }, 'Nome do prato *'), campo('nome', { placeholder: 'Ex.: Frango da tia Lurdes', autocomplete: 'off' }),
     h('label', { class: 'rot' }, 'Categoria'), sel,
+    h('label', { class: 'rot' }, 'Tipo'), selTipo,
     h('label', { class: 'rot' }, 'Foto'),
     h('div', { style: { display: 'flex', gap: '12px', alignItems: 'flex-start' } }, previa,
       h('div', { style: { flex: 1, display: 'grid', gap: '8px' } }, buscaFoto, h('button', { class: 'btn pequeno', onClick: buscarFotos }, '🔎 Buscar foto na Wikipédia'), linkFoto)),

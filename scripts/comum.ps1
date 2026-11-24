@@ -32,6 +32,8 @@ $Refeicoes   = @{ cafe='Café da manhã'; almoco='Almoço'; jantar='Jantar'; lan
 $Dificuldade = @{ F='Fácil'; M='Média'; D='Difícil' }
 $Custo       = @{ '1'='Barato'; '2'='Médio'; '3'='Caro' }
 $Restricao   = @{ v='vegetariano'; l='sem-lactose'; g='sem-gluten' }
+# Papel do prato na refeição: o sorteio geral usa só os pratos principais.
+$Tipos       = @{ P='principal'; A='acompanhamento'; E='petisco'; L='lanche'; D='doce'; B='bebida' }
 $Unidades    = @('', 'a gosto', 'xícara', 'colher de sopa', 'colher de chá', 'g', 'kg', 'ml', 'l',
                  'dente', 'pitada', 'maço', 'fatia', 'lata', 'pacote', 'ramo', 'folha', 'pedaço', 'copo', 'vidro', 'espiga')
 
@@ -98,6 +100,7 @@ function ConvertTo-Prato($p, [string]$categoria, $fotos) {
     id          = $id
     nome        = $p.n
     categoria   = $categoria
+    tipo        = $Tipos[[string]$p.tp]
     regiao      = $p.r
     refeicao    = [object[]]@($p.ref | ForEach-Object { $Refeicoes[$_] })
     tempoMin    = [int]$p.t
@@ -117,7 +120,7 @@ function ConvertTo-Prato($p, [string]$categoria, $fotos) {
 # Confere um prato compacto; devolve a lista de problemas encontrados.
 function Test-Prato($p) {
   $erros = @()
-  foreach ($campo in 'n','r','ref','t','d','c','p','desc','i','s','dica','cur') {
+  foreach ($campo in 'n','r','ref','t','d','c','p','tp','desc','i','s','dica','cur') {
     $v = $p.PSObject.Properties[$campo]
     if (-not $v -or $null -eq $v.Value -or ([string]$v.Value).Trim() -eq '') { $erros += "campo '$campo' vazio" }
   }
@@ -125,6 +128,7 @@ function Test-Prato($p) {
   foreach ($r in @($p.ref)) { if (-not $Refeicoes.ContainsKey([string]$r)) { $erros += "refeição inválida '$r'" } }
   if (-not $Dificuldade.ContainsKey([string]$p.d)) { $erros += "dificuldade inválida '$($p.d)'" }
   if (-not $Custo.ContainsKey([string]$p.c)) { $erros += "custo inválido '$($p.c)'" }
+  if (-not $Tipos.ContainsKey([string]$p.tp)) { $erros += "tipo inválido '$($p.tp)' (use P, A, E, L, D ou B)" }
   foreach ($ch in ([string]$p.x).ToCharArray()) { if (-not $Restricao.ContainsKey([string]$ch)) { $erros += "restrição inválida '$ch'" } }
   if ([int]$p.t -le 0) { $erros += 'tempo deve ser > 0' }
   if ([int]$p.p -le 0) { $erros += 'rendimento deve ser > 0' }

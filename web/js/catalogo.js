@@ -91,8 +91,30 @@ export function arte(p) {
 export const fotoDe = (p) => (p?.foto?.url ? p.foto.url : arte(p));
 export const temFoto = (p) => !!p?.foto?.url;
 
+// ---------- Tipo (papel do prato na refeição) ----------
+export const TIPOS = [
+  ['principal', '🍽️ Prato principal'], ['acompanhamento', '🍚 Acompanhamento'], ['petisco', '🍢 Petisco / porção'],
+  ['lanche', '🥪 Lanche e salgado'], ['doce', '🍮 Doce'], ['bebida', '🥤 Bebida'],
+];
+export const ROTULO_TIPO = Object.fromEntries(TIPOS);
+/** Pratos do usuário (sem tipo) contam como prato principal. */
+export const tipoDe = (p) => p?.tipo || 'principal';
+/**
+ * Tipos que o sorteio geral usa quando a pessoa não escolheu nenhum no filtro "Tipo":
+ * sempre o prato principal; com café/lanche marcado entram lanches e petiscos; com sobremesa, os doces.
+ * Acompanhamento e bebida só entram se escolhidos de propósito.
+ */
+export function tiposDoSorteio(f = ler('filtros')) {
+  const ok = new Set(['principal']);
+  const r = f.refeicao || [];
+  if (r.includes('Café da manhã') || r.includes('Lanche')) { ok.add('lanche'); ok.add('petisco'); }
+  if (r.includes('Sobremesa')) ok.add('doce');
+  return ok;
+}
+
 // ---------- Filtros ----------
 export const GRUPOS_FILTRO = [
+  { chave: 'tipo', titulo: 'Tipo', opcoes: TIPOS },
   { chave: 'refeicao', titulo: 'Refeição', opcoes: [['Café da manhã', '☕ Café da manhã'], ['Almoço', '🍽️ Almoço'], ['Jantar', '🌙 Jantar'], ['Lanche', '🥪 Lanche'], ['Sobremesa', '🍮 Sobremesa']] },
   { chave: 'tempo', titulo: 'Tempo de preparo', unico: true, opcoes: [['30', '⚡ Até 30 min'], ['60', '⏱️ Até 1 hora'], ['mais', '🐢 Mais de 1 hora']] },
   { chave: 'dificuldade', titulo: 'Dificuldade', opcoes: [['Fácil', 'Fácil'], ['Média', 'Média'], ['Difícil', 'Difícil']] },
@@ -102,6 +124,7 @@ export const GRUPOS_FILTRO = [
 ];
 
 export function passaFiltros(p, f) {
+  if (f.tipo?.length && !f.tipo.includes(tipoDe(p))) return false;
   if (f.refeicao?.length && p.refeicao?.length && !p.refeicao.some((r) => f.refeicao.includes(r))) return false;
   if (f.tempo && p.tempoMin) {
     if (f.tempo === '30' && p.tempoMin > 30) return false;

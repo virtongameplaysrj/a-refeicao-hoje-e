@@ -4,7 +4,7 @@
 // - "Hoje não" derruba a chance por 3 dias (recupera aos poucos).
 // - Prato feito não volta por 7 dias; o sorteado fica fora das próximas 3 rodadas.
 import { ler, gravar, alterar } from './store.js';
-import { todos, porId, aplicarFiltros } from './catalogo.js';
+import { todos, porId, aplicarFiltros, tipoDe, tiposDoSorteio } from './catalogo.js';
 import { escolherPonderado, diasDesde, clamp } from './util.js';
 
 const DIAS_RECUSA = 3, DIAS_FEITO = 7, RODADAS_FORA = 3;
@@ -41,7 +41,7 @@ export function peso(p, modo, ctx, fav) {
  * Monta o conjunto sorteável. modo: 'catalogo' | 'favoritos'. lista: pratos de origem (opcional).
  * Devolve {pool, aviso}. Se as regras esvaziarem tudo, afrouxa (e avisa).
  */
-export function montarPool({ modo = 'catalogo', lista = null, usarFiltros = true } = {}) {
+export function montarPool({ modo = 'catalogo', lista = null, usarFiltros = true, soPratos = !lista } = {}) {
   const ctx = contexto();
   const favs = new Map(ler('favoritos').map((f) => [f.id, f]));
   let origem = lista || (modo === 'favoritos' ? [...favs.keys()].map(porId).filter(Boolean) : todos());
@@ -50,6 +50,13 @@ export function montarPool({ modo = 'catalogo', lista = null, usarFiltros = true
     const filtrados = aplicarFiltros(origem);
     if (filtrados.length) origem = filtrados;
     else if (origem.length) aviso = 'Nenhum prato passa nos filtros; sorteando entre todos.';
+  }
+  // Sorteio geral ("Me surpreenda", favoritos): só o que é refeição de verdade, não arroz, couve ou bebida.
+  // Dentro de uma categoria ("Sortear daqui") vale tudo o que está nela. Filtro "Tipo" escolhido manda.
+  if (soPratos && !ler('filtros').tipo?.length) {
+    const ok = tiposDoSorteio();
+    const pratos = origem.filter((p) => ok.has(tipoDe(p)));
+    if (pratos.length) origem = pratos;
   }
   const feitoRecente = (p) => { const u = ctx.ultima.get(p.id); return u != null && diasDesde(u) < DIAS_FEITO; };
   const ultimos = new Set(ctx.ultimos);

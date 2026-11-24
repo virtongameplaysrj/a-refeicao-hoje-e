@@ -8,7 +8,7 @@ export const PADROES = {
   meusPratos: [],       // pratos adicionados à mão
   lista: [],            // lista de compras: [{receitaId, nome, porcoes, itens:[{item, quantidade, unidade}]}]
   marcados: {},         // itens marcados na lista: {chave: true}
-  filtros: { refeicao: [], tempo: null, dificuldade: [], custo: [], regiao: [], restricoes: [] },
+  filtros: { tipo: [], refeicao: [], tempo: null, dificuldade: [], custo: [], regiao: [], restricoes: [] },
   cozinhando: null,     // {id, inicio, passo, porcoes, timers:[{id, rotulo, fim, total, avisado}]}
   sorteio: { recusas: {}, ultimos: [] },
   rascunhoGosto: null,
