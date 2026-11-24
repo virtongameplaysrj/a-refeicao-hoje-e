@@ -15,11 +15,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  publicar:
+  # Dois jobs: o deploy só começa depois que o artefato foi registrado
+  # (num job só, às vezes o deploy-pages não achava o artefato recém-enviado).
+  montar:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v5
 
@@ -38,5 +37,13 @@ jobs:
       - uses: actions/upload-pages-artifact@v4
         with:
           path: web
+
+  publicar:
+    needs: montar
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
       - id: deploy
         uses: actions/deploy-pages@v4
