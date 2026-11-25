@@ -105,7 +105,8 @@ function blocoVaiBemCom(p, escolhidos) {
         cb.addEventListener('change', () => { if (cb.checked) escolhidos.add(a.id); else escolhidos.delete(a.id); });
         return h('div', { class: 'hist-item', role: 'button', style: { cursor: 'pointer' }, onClick: () => ir('receita/' + encodeURIComponent(a.id)) },
           imgPrato(a),
-          h('div', null, a.nome, h('small', null, [ROTULO_TIPO[tipoDe(a)], a.tempoMin && formatarMinutos(a.tempoMin)].filter(Boolean).join(' · '))),
+          h('div', null, a.nome, h('small', null, [ROTULO_TIPO[tipoDe(a)], a.tempoMin && formatarMinutos(a.tempoMin),
+            esperaHoras(a) && `⏳ ${textoEspera(esperaHoras(a))}`].filter(Boolean).join(' · '))),
           cb);
       }),
       h('small', { style: { display: 'block', color: 'var(--suave)', marginTop: '8px' } }, 'Os marcados vão para a 🛒 Lista junto com este prato, na mesma quantidade de porções. Toque no nome para ver a receita.')),
