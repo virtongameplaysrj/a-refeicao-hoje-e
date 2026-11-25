@@ -62,24 +62,67 @@ export function formatarQtd(q, unidade = '') {
   return (inteiro ? String(inteiro) : '') + melhor[1];
 }
 
-/** Plural simples, só para item de uma palavra ("cebola" → "cebolas"); frases ficam como estão. */
-function pluralPalavra(item) {
-  if (/\s/.test(item) || /s$/i.test(item)) return item;
-  if (/ão$/.test(item)) return item.replace(/ão$/, 'ões');
-  if (/[rz]$/.test(item)) return item + 'es';
-  if (/l$/.test(item)) return item.replace(/l$/, 'is');
-  return item + 's';
+// ---------- Singular e plural de ingredientes contáveis ----------
+// Só o começo do nome concorda com o número ("tomates picados", "ovo batido"); o que vem depois
+// de uma preposição fica como está ("bifes de contrafilé", "cebola em rodelas").
+const PREPOSICOES = new Set(['de', 'do', 'da', 'dos', 'das', 'em', 'para', 'com', 'sem', 'ou', 'e', 'a', 'ao', 'à', 'no', 'na', 'bem', 'por', 'pra', 'cerca']);
+const INVARIAVEIS = new Set(['minas', 'mussarela', 'caipira', 'fresco', 'grosso']);
+const PLURAL_IRREG = { 'pão': 'pães', 'alemão': 'alemães', 'mão': 'mãos', 'irmão': 'irmãos' };
+const SINGULAR_IRREG = Object.fromEntries(Object.entries(PLURAL_IRREG).map(([s, p]) => [p, s]));
+
+function pluralDe(w) {
+  if (PLURAL_IRREG[w]) return PLURAL_IRREG[w];
+  if (INVARIAVEIS.has(w) || /s$/.test(w) && !/ês$/.test(w)) return w;
+  if (/ês$/.test(w)) return w.replace(/ês$/, 'eses');
+  if (/ão$/.test(w)) return w.replace(/ão$/, 'ões');
+  if (/[rz]$/.test(w)) return w + 'es';
+  if (/m$/.test(w)) return w.replace(/m$/, 'ns');
+  if (/al$|el$|ol$|ul$/.test(w)) return w.replace(/l$/, 'is');
+  return w + 's';
 }
+function singularDe(w) {
+  if (SINGULAR_IRREG[w]) return SINGULAR_IRREG[w];
+  if (INVARIAVEIS.has(w) || !/s$/.test(w) || /ês$/.test(w)) return w;
+  if (/eses$/.test(w)) return w.replace(/eses$/, 'ês');
+  if (/ões$/.test(w)) return w.replace(/ões$/, 'ão');
+  if (/[rz]es$/.test(w)) return w.slice(0, -2);
+  if (/ns$/.test(w)) return w.replace(/ns$/, 'm');
+  if (/ais$|éis$|óis$/.test(w)) return w.replace(/is$/, 'l').replace(/é(l)$/, 'e$1').replace(/ó(l)$/, 'o$1');
+  return w.slice(0, -1);
+}
+/** Põe o começo do nome no singular ou no plural: "tomates picados" ↔ "tomate picado". */
+export function concordar(item, plural) {
+  const palavras = item.split(' ');
+  let i = 0;
+  for (; i < palavras.length; i++) {
+    const w = palavras[i];
+    if (PREPOSICOES.has(w.toLowerCase()) || /[()\d]/.test(w)) break;
+    // "banana-nanica" → as duas partes concordam
+    palavras[i] = w.split('-').map((p) => (/^[a-zà-ú]+$/i.test(p) ? (plural ? pluralDe(p) : singularDe(p)) : p)).join('-');
+  }
+  return palavras.join(' ');
+}
+
+// Contáveis que fazem sentido em pedaço (½ cebola, ¼ de pimentão); o resto (ovo, bife, bisteca...) é por inteiro.
+const FRACIONAVEIS = /^(cebola|tomate|pimentão|pimentao|limão|limao|laranja|cenoura|batata|abobrinha|berinjela|maçã|maca|chuchu|mandioquinha|abóbora|abobora|repolho|pepino|beterraba|alho-poró|alho poro|maço|pé|cabeça|coco|mamão|manga|abacaxi|banana|lingui[çc]a|paio|cal?abresa)/i;
+export function qtdContavel(q, item) {
+  if (FRACIONAVEIS.test(singularDe(item.split(' ')[0].toLowerCase()))) return q;
+  return Math.max(1, Math.round(q));
+}
+
 /** "2 xícaras de arroz", "3 ovos", "sal a gosto" — já multiplicado pelo fator de porções. */
 export function textoIngrediente(ing, fator = 1) {
   const item = ing.item;
   if (ing.unidade === 'a gosto') return `${item} a gosto`;
   if (ing.quantidade == null) return item;
-  const q = ing.quantidade * fator;
+  let q = ing.quantidade * fator;
+  if (!ing.unidade) q = qtdContavel(q, item);
   let txt = formatarQtd(q, ing.unidade), un = ing.unidade;
   if (txt.includes('|')) [txt, un] = txt.split('|');
-  if (!un) return `${txt} ${q > 1.01 ? pluralPalavra(item) : item}`;
-  const plural = q > 1.01 && PLURAIS[un] ? PLURAIS[un] : un;
+  // Concorda com o número exibido (1,07 aparece como "1" → singular).
+  const varios = !/^(1|¼|½|¾|⅓|⅔)$/.test(txt);
+  if (!un) return `${txt} ${concordar(item, varios)}`;
+  const plural = varios && PLURAIS[un] ? PLURAIS[un] : un;
   return `${txt} ${plural} de ${item}`;
 }
 

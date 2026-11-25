@@ -23,8 +23,14 @@ export function temposNoPasso(txt) {
 export function iniciarCozinha(prato, porcoes) {
   gravar('cozinhando', { id: prato.id, inicio: Date.now(), passo: 0, porcoes, timers: [] });
 }
+/** Liga um timer; devolve false se esse mesmo timer já está correndo (toque repetido no botão). */
 export function criarTimer(seg, rotulo) {
-  alterar('cozinhando', (c) => { if (c) c.timers.push({ id: Date.now(), rotulo, total: seg, fim: Date.now() + seg * 1000, avisado: false }); });
+  let criou = false;
+  alterar('cozinhando', (c) => {
+    if (!c || c.timers.some((t) => t.rotulo === rotulo && t.fim > Date.now())) return;
+    c.timers.push({ id: Date.now(), rotulo, total: seg, fim: Date.now() + seg * 1000, avisado: false }); criou = true;
+  });
+  return criou;
 }
 
 let tocando = null;

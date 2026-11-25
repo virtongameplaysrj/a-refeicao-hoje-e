@@ -1,7 +1,7 @@
 // Telas: Receita, Cozinhando agora, Lista de compras, Meu histórico, Meu prato.
-import { h, trocar, normalizar, toast, textoIngrediente, formatarMinutos, formatarRelogio, formatarData, copiarTexto, compartilharTexto, clamp } from './util.js';
+import { h, trocar, normalizar, toast, textoIngrediente, formatarMinutos, formatarRelogio, formatarData, copiarTexto, compartilharTexto, clamp, concordar } from './util.js';
 import { ler, gravar, alterar, favorito, favoritar, desfavoritar, registrarRefeicao, exportarBackup, importarBackup } from './store.js';
-import { CATEGORIAS, MEUS, categoriaPorNome, porId, reindexar, meusPratos, fotoDe, tipoDe, ROTULO_TIPO, TIPOS } from './catalogo.js';
+import { CATEGORIAS, MEUS, categoriaPorNome, porId, reindexar, meusPratos, fotoDe, tipoDe, ROTULO_TIPO, TIPOS, esperaHoras, textoEspera } from './catalogo.js';
 import { dialogo, confirmar } from './modal.js';
 import { temposNoPasso, iniciarCozinha, criarTimer, removerTimer, pararAlarme, timerTocando } from './cozinha.js';
 import { topo, imgPrato, estrelasEl, creditoFoto, linkYoutube } from './telas.js';
@@ -44,6 +44,8 @@ export function telaReceita(id) {
       (p.refeicao || []).map((r) => h('span', { class: 'etq' }, r)),
       (p.restricoes || []).map((r) => h('span', { class: 'etq verde' }, ROT_RESTR[r] || r))),
     p.descricao && h('p', { class: 'desc' }, p.descricao),
+    esperaHoras(p) ? h('div', { class: 'caixa dica' }, h('b', null, `⏳ ${textoEspera(esperaHoras(p)).replace(/^\+/, '').replace(/^./, (c) => c.toUpperCase())}`),
+      `${p.tempoMin ? `Além dos ${formatarMinutos(p.tempoMin)} de preparo, esta` : 'Esta'} receita pede ${esperaHoras(p) >= 36 ? `${Math.round(esperaHoras(p) / 24)} dias` : `${esperaHoras(p)} horas`} de espera (molho, marinada ou geladeira). Planeje antes de começar.`) : null,
     h('div', { class: 'stats' },
       h('div', { class: 'stat' }, h('b', null, p.tempoMin ? formatarMinutos(p.tempoMin) : '—'), h('small', null, 'tempo')),
       h('div', { class: 'stat' }, h('b', null, p.dificuldade || '—'), h('small', null, 'dificuldade')),
@@ -123,7 +125,7 @@ export function telaCozinhando() {
     trocar(passoBox, 
       h('div', { class: 'num' }, `Passo ${i + 1} de ${n}`),
       h('p', null, texto),
-      temposNoPasso(texto).map((t) => h('button', { class: 'btn milho bloco', style: { marginBottom: '8px' }, onClick: () => { criarTimer(t.seg, `Passo ${i + 1}: ${t.rotulo}`); toast(`⏱️ Timer de ${formatarMinutos(Math.round(t.seg / 60))} ligado`); desenharTimers(); } },
+      temposNoPasso(texto).map((t) => h('button', { class: 'btn milho bloco', style: { marginBottom: '8px' }, onClick: () => { const ok = criarTimer(t.seg, `Passo ${i + 1}: ${t.rotulo}`); toast(ok ? `⏱️ Timer de ${formatarMinutos(Math.round(t.seg / 60))} ligado` : 'Esse timer já está correndo ⏱️'); desenharTimers(); } },
         `⏱️ Timer de ${formatarMinutos(Math.round(t.seg / 60))}`)),
       i === n - 1 ? h('small', { style: { color: 'var(--suave)', marginBottom: '8px' } }, 'Último passo! Toque em “Terminei” quando acabar.') : null,
       h('div', { class: 'btns dois', style: { margin: 0 } },
@@ -198,19 +200,28 @@ export function telaCozinhando() {
 // ---------- 9. Lista de compras ----------
 const CORTES = /\s(em|picad|ralad|fatiad|cozid|desfiad|amassad|dessalgad|para|sem|com|maduras?|bem|fresc|limp|inteir|cortad|moíd|moid|batid|triturad|torrad|escorrid)\S*.*$/;
 function chaveItem(i) {
-  const base = normalizar(i.item.replace(/\(.*?\)/g, '')).replace(CORTES, '').trim();
+  // No singular, para "1 cebola" e "2 cebolas picadas" virarem a mesma linha.
+  const base = normalizar(concordar(i.item.replace(/\(.*?\)/g, '').trim(), false)).replace(CORTES, '').trim();
   return base + '|' + (i.unidade || '');
 }
+// Água não se compra; sal, óleo e companhia quase todo mundo tem: viram só um lembrete, sem somar.
+const NAO_COMPRA = /^(agua|agua fervente|agua quente|agua gelada|agua morna)\|/;
+const DESPENSA = /^(sal|sal grosso|sal fino|oleo|oleo de soja|azeite|azeite de oliva|pimenta do reino|pimenta do reino moida)\|/;
 function somar(lista) {
   const mapa = new Map();
   for (const r of lista) for (const i of r.itens) {
     const k = chaveItem(i);
+    if (NAO_COMPRA.test(k)) continue;
     const s = mapa.get(k) || { chave: k, item: i.item.replace(/\s*\(.*?\)/g, ''), unidade: i.unidade, quantidade: 0, semQtd: false, receitas: new Set() };
     if (i.quantidade == null) s.semQtd = true; else s.quantidade += i.quantidade;
     if (i.item.length < s.item.length) s.item = i.item.replace(/\s*\(.*?\)/g, '');
     s.receitas.add(r.nome); mapa.set(k, s);
   }
-  return [...mapa.values()].sort((a, b) => a.item.localeCompare(b.item));
+  const todos = [...mapa.values()].sort((a, b) => a.item.localeCompare(b.item));
+  // Despensa: um item por nome (sal de 3 receitas com unidades diferentes vira uma linha só).
+  const despensa = new Map();
+  for (const s of todos) if (DESPENSA.test(s.chave)) { const nome = s.chave.split('|')[0]; if (!despensa.has(nome)) despensa.set(nome, { ...s, chave: nome + '|despensa', unidade: 'a gosto' }); }
+  return { compras: todos.filter((s) => !DESPENSA.test(s.chave)), despensa: [...despensa.values()] };
 }
 const textoSomado = (s) => s.unidade === 'a gosto' ? `${s.item} a gosto` : s.quantidade ? textoIngrediente({ item: s.item, unidade: s.unidade, quantidade: s.quantidade }) : s.item;
 
@@ -234,7 +245,11 @@ export function telaLista() {
     };
     let corpo;
     if (aba === 'somado') {
-      corpo = h('div', { class: 'card' }, somar(lista).map((s) => linha(s.chave, textoSomado(s), s.receitas.size > 1 ? `para ${[...s.receitas].join(', ')}` : null)));
+      const { compras, despensa } = somar(lista);
+      corpo = h('div', null,
+        h('div', { class: 'card' }, compras.map((s) => linha(s.chave, textoSomado(s), s.receitas.size > 1 ? `para ${[...s.receitas].join(', ')}` : null))),
+        despensa.length ? h('div', { class: 'card' }, h('h3', { style: { margin: '0 0 6px' } }, '🧂 Despensa ', h('small', { style: { color: 'var(--suave)', fontSize: '14px' } }, '— confira se tem em casa')),
+          despensa.map((s) => linha(s.chave, s.item))) : null);
     } else {
       corpo = h('div', null, lista.map((r) => h('div', { class: 'grupo-receita card' },
         h('h3', null, h('span', null, `${r.nome} `, h('small', { style: { color: 'var(--suave)', fontSize: '14px' } }, `(${r.porcoes} porções)`)),
@@ -255,7 +270,7 @@ export function telaLista() {
   }
   function limparMarcados() {
     const m = ler('marcados');
-    alterar('lista', (l) => l.map((r) => ({ ...r, itens: r.itens.filter((i) => !m[chaveItem(i)]) })).filter((r) => r.itens.length));
+    alterar('lista', (l) => l.map((r) => ({ ...r, itens: r.itens.filter((i) => { const k = chaveItem(i); return !m[k] && !m[k.split('|')[0] + '|despensa']; }) })).filter((r) => r.itens.length));
     gravar('marcados', {}); toast('Itens marcados removidos'); montar();
   }
   async function esvaziar() {
@@ -264,8 +279,10 @@ export function telaLista() {
   }
   async function compartilhar() {
     const lista = ler('lista'), m = ler('marcados');
-    const linhas = somar(lista).map((s) => `${m[s.chave] ? '☑' : '☐'} ${textoSomado(s)}`);
-    const texto = `🛒 Lista de compras — A refeição hoje é...\n\n${linhas.join('\n')}\n\nReceitas: ${lista.map((r) => `${r.nome} (${r.porcoes} porções)`).join('; ')}`;
+    const { compras, despensa } = somar(lista);
+    const linhas = compras.map((s) => `${m[s.chave] ? '☑' : '☐'} ${textoSomado(s)}`);
+    const desp = despensa.length ? `\n\n🧂 Despensa (confira se tem em casa): ${despensa.map((s) => s.item).join(', ')}` : '';
+    const texto = `🛒 Lista de compras — A refeição hoje é...\n\n${linhas.join('\n')}${desp}\n\nReceitas: ${lista.map((r) => `${r.nome} (${r.porcoes} porções)`).join('; ')}`;
     const r = await compartilharTexto(texto, 'Lista de compras');
     if (r === 'copiado') toast('📋 Lista copiada — é só colar no WhatsApp');
     else if (r === 'falhou') toast('Não consegui compartilhar 😕');
@@ -325,7 +342,7 @@ export function telaHistorico() {
     const v = await dialogo({ titulo: 'Restaurar backup', texto: 'Cole o texto do backup. Os dados atuais deste aparelho serão substituídos.', conteudo: ta,
       botoes: [{ rotulo: 'Restaurar', classe: 'primario', valor: () => ta.value.trim() || undefined }, { rotulo: 'Cancelar', classe: 'fantasma', valor: false }] });
     if (!v) return;
-    try { const b = importarBackup(v); reindexar(); toast(`✅ Backup de ${formatarData(Date.parse(b.criadoEm) || Date.now())} restaurado`); montar(); }
+    try { const b = importarBackup(v); reindexar(); toast(`✅ Backup de ${formatarData(Date.parse(b.criadoEm) || Date.now())} restaurado${b.ignorados.length ? ` (${b.ignorados.length} parte${b.ignorados.length > 1 ? 's' : ''} danificada${b.ignorados.length > 1 ? 's' : ''} ignorada${b.ignorados.length > 1 ? 's' : ''})` : ''}`, { ms: 5000 }); montar(); }
     catch (e) { toast(e.message); }
   }
   montar();
@@ -333,13 +350,29 @@ export function telaHistorico() {
 }
 
 // ---------- Meu prato (adicionar/editar) ----------
+// Unidades escritas à mão → unidade do catálogo ("2 xícaras de arroz" → 2 | xícara | arroz).
+const UNIDADES_TEXTO = [
+  [/^x[íi]caras?( de ch[áa])?/i, 'xícara'], [/^colher(es)? de sopa/i, 'colher de sopa'], [/^colher(es)? de ch[áa]/i, 'colher de chá'],
+  [/^(kg|quilos?)\b/i, 'kg'], [/^(g|gramas?)\b/i, 'g'], [/^ml\b/i, 'ml'], [/^(l|litros?)\b/i, 'l'],
+  [/^dentes?/i, 'dente'], [/^pitadas?/i, 'pitada'], [/^ma[çc]os?/i, 'maço'], [/^fatias?/i, 'fatia'], [/^latas?/i, 'lata'],
+  [/^pacotes?/i, 'pacote'], [/^ramos?/i, 'ramo'], [/^folhas?(?= de )/i, 'folha'], [/^peda[çc]os?/i, 'pedaço'], [/^copos?/i, 'copo'],
+  [/^vidros?/i, 'vidro'], [/^espigas?/i, 'espiga'],
+];
 function lerIngrediente(linha) {
-  const m = linha.trim().match(/^(\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:[.,]\d+)?|½|¼|¾)\s+(.+)$/);
-  if (!m) return { item: linha.trim(), quantidade: null, unidade: '' };
+  const txt = linha.trim().replace(/^(\d+(?:[.,]\d+)?)(kg|g|ml|l)\b/i, '$1 $2');   // "500g" → "500 g"
+  const gosto = txt.match(/^(.+?)\s+a gosto$/i);
+  if (gosto) return { item: gosto[1], quantidade: null, unidade: 'a gosto' };
+  const m = txt.match(/^(\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:[.,]\d+)?|½|¼|¾)\s+(.+)$/);
+  if (!m) return { item: txt, quantidade: null, unidade: '' };
   const frac = { '½': 0.5, '¼': 0.25, '¾': 0.75 };
   let q = 0;
   for (const parte of m[1].split(/\s+/)) q += frac[parte] ?? (parte.includes('/') ? parte.split('/').reduce((a, b) => a / b) : parseFloat(parte.replace(',', '.')));
-  return { item: m[2], quantidade: q, unidade: '' };
+  let resto = m[2], unidade = '';
+  for (const [re, un] of UNIDADES_TEXTO) {
+    const u = resto.match(re);
+    if (u) { unidade = un; resto = resto.slice(u[0].length).replace(/^\s*(de\s+)?/i, ''); break; }
+  }
+  return { item: resto || m[2], quantidade: q, unidade };
 }
 const ingredienteParaLinha = (i) => (i.quantidade == null ? i.item : textoIngrediente(i));
 

@@ -3,7 +3,7 @@
 import { h, embaralhar, clamp, vibrar } from './util.js';
 import { rufar, marchinha, tique, taDa, audio } from './audio.js';
 import { abrirModal, fecharModal } from './modal.js';
-import { categoriaPorNome } from './catalogo.js';
+import { categoriaPorNome, esperaHoras, textoEspera } from './catalogo.js';
 import { sortear, registrarSorteado, registrarRecusa } from './sorteio.js';
 
 const CORES = ['#c8553d', '#f2c14e', '#6aa84f', '#8c5a3c', '#e07a5f', '#d9a441', '#4f8a3c', '#a8432e'];
@@ -144,6 +144,7 @@ export function abrirRoleta({ pool, pesoDe, titulo = 'Sorteando...', aviso = '',
     resultado.replaceChildren(
       h('div', { class: 'frase' }, 'A refeição hoje é...'),
       h('div', { class: 'vencedor' }, vencedor.nome + '!'),
+      esperaHoras(vencedor) ? h('small', { style: { color: '#f2c14e', display: 'block', marginTop: '-4px', marginBottom: '10px' } }, `⏳ Atenção: ${textoEspera(esperaHoras(vencedor))}`) : null,
       h('div', { class: 'btns' },
         h('button', { class: 'btn primario bloco', onClick: (e) => { e.stopPropagation(); const p = vencedor; fecharModal(() => aoEscolher?.(p)); } }, '😋 Vou fazer este!'),
         h('button', { class: 'btn fantasma bloco', onClick: (e) => { e.stopPropagation(); outro(); } }, '🙅 Hoje não, escolha outro')),

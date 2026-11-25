@@ -16,16 +16,49 @@ export const PADROES = {
 };
 
 const copia = (v) => (v === undefined ? undefined : JSON.parse(JSON.stringify(v)));
+const ehObj = (v) => v != null && typeof v === 'object' && !Array.isArray(v);
+const comId = (x) => ehObj(x) && typeof x.id === 'string' && x.id;
+
+/** Itens que cada lista precisa ter para as telas não quebrarem; o que não serve é descartado. */
+const ITEM_VALIDO = {
+  favoritos: comId,
+  historico: (x) => comId(x) && Number.isFinite(x.em),
+  ocultos: (x) => typeof x === 'string',
+  meusPratos: (x) => comId(x) && typeof x.nome === 'string',
+  lista: (x) => ehObj(x) && typeof x.nome === 'string' && Array.isArray(x.itens) && x.itens.every((i) => ehObj(i) && typeof i.item === 'string'),
+};
+
+/**
+ * Confere o tipo do valor guardado contra o padrão: dado corrompido ou de um backup estranho
+ * volta ao padrão em vez de derrubar a tela. Devolve null se o valor não serve de jeito nenhum.
+ */
+export function sanear(chave, v) {
+  const p = PADROES[chave];
+  if (!(chave in PADROES)) return v;
+  if (Array.isArray(p)) return Array.isArray(v) ? (ITEM_VALIDO[chave] ? v.filter(ITEM_VALIDO[chave]) : v) : null;
+  if (chave === 'cozinhando') {
+    if (!comId(v) || !Number.isFinite(v.inicio)) return null;
+    return { ...v, passo: Number.isFinite(v.passo) ? v.passo : 0, timers: Array.isArray(v.timers) ? v.timers.filter((t) => ehObj(t) && Number.isFinite(t.fim)) : [] };
+  }
+  if (ehObj(p)) {
+    if (!ehObj(v)) return null;
+    const r = { ...copia(p), ...v };
+    // Subcampos com o mesmo tipo do padrão (ex.: filtros.regiao precisa ser lista)
+    for (const [k, pv] of Object.entries(p)) {
+      if (Array.isArray(pv) && !Array.isArray(r[k])) r[k] = copia(pv);
+      else if (ehObj(pv) && !ehObj(r[k])) r[k] = copia(pv);
+    }
+    return r;
+  }
+  return v; // rascunhos: objeto livre ou null
+}
 
 export function ler(chave) {
   try {
     const bruto = localStorage.getItem(PREFIXO + chave);
     if (bruto == null) return copia(PADROES[chave]);
-    const v = JSON.parse(bruto);
-    // Garante campos novos em objetos com padrão
-    const p = PADROES[chave];
-    if (p && typeof p === 'object' && !Array.isArray(p) && v && typeof v === 'object') return { ...copia(p), ...v };
-    return v;
+    const v = sanear(chave, JSON.parse(bruto));
+    return v === null && PADROES[chave] !== null ? copia(PADROES[chave]) : v;
   } catch { return copia(PADROES[chave]); }
 }
 
@@ -62,7 +95,16 @@ export function exportarBackup() {
 export function importarBackup(texto) {
   let obj;
   try { obj = JSON.parse(texto.trim()); } catch { throw new Error('O texto colado não é um backup válido.'); }
-  if (!obj || obj.app !== 'a-refeicao-hoje-e' || !obj.dados) throw new Error('Esse texto não parece ser um backup deste app.');
-  for (const k of Object.keys(PADROES)) if (k in obj.dados) gravar(k, obj.dados[k]);
+  if (!obj || obj.app !== 'a-refeicao-hoje-e' || !ehObj(obj.dados)) throw new Error('Esse texto não parece ser um backup deste app.');
+  // Confere tudo antes de gravar qualquer coisa: backup estragado não pode apagar os dados atuais.
+  const bons = {}, ruins = [];
+  for (const k of Object.keys(PADROES)) {
+    if (!(k in obj.dados)) continue;
+    const v = sanear(k, obj.dados[k]);
+    if (v === null && obj.dados[k] !== null) ruins.push(k); else bons[k] = v;
+  }
+  if (!Object.keys(bons).length) throw new Error('Esse backup está danificado; nada foi alterado.');
+  for (const [k, v] of Object.entries(bons)) gravar(k, v);
+  obj.ignorados = ruins;
   return obj;
 }

@@ -3,7 +3,7 @@ import { h, trocar, normalizar, toast, aoSegurar, aleatorioComSemente, embaralha
 import { ler, gravar, alterar, favorito, favoritar, desfavoritar, atualizarFavorito } from './store.js';
 import {
   CATEGORIAS, MEUS, categoriaPorNome, categoriaPorSlug, todos, porId, daCategoria, buscar, meusPratos, reindexar,
-  fotoDe, arte, temFoto, totalCatalogo, GRUPOS_FILTRO, tipoDe, ROTULO_TIPO, aplicarFiltros, contarFiltros, rotulosFiltros,
+  fotoDe, arte, temFoto, totalCatalogo, GRUPOS_FILTRO, tipoDe, ROTULO_TIPO, esperaHoras, textoEspera, aplicarFiltros, contarFiltros, rotulosFiltros,
 } from './catalogo.js';
 import { montarPool } from './sorteio.js';
 import { abrirRoleta } from './roleta.js';
@@ -272,7 +272,8 @@ export function telaPrateleira(slug) {
       fotoPalco.src = fotoDe(p); fotoPalco.classList.add('troca');
       nomePalco.textContent = p.nome;
       regPalco.textContent = [p.regiao, categoriaPorNome(p.categoria) === MEUS ? 'Meu prato' : ''].filter(Boolean).join(' · ') || cat.nome;
-      const etq = [tipoDe(p) !== 'principal' && ROTULO_TIPO[tipoDe(p)], p.regiao && `📍 ${p.regiao}`, p.tempoMin && `⏱️ ${formatarMinutos(p.tempoMin)}`, p.dificuldade && `👩‍🍳 ${p.dificuldade}`, p.custo && `💰 ${p.custo}`].filter(Boolean);
+      const etq = [tipoDe(p) !== 'principal' && ROTULO_TIPO[tipoDe(p)], p.regiao && `📍 ${p.regiao}`, p.tempoMin && `⏱️ ${formatarMinutos(p.tempoMin)}`,
+        esperaHoras(p) && `⏳ ${textoEspera(esperaHoras(p))}`, p.dificuldade && `👩‍🍳 ${p.dificuldade}`, p.custo && `💰 ${p.custo}`].filter(Boolean);
       trocar(info, 
         h('div', { class: 'etiquetas' }, etq.map((t) => h('span', { class: 'etq' }, t)),
           (p.restricoes || []).map((r) => h('span', { class: 'etq verde' }, { vegetariano: '🌱 vegetariano', 'sem-lactose': 'sem lactose', 'sem-gluten': 'sem glúten' }[r] || r))),

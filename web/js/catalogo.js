@@ -112,6 +112,29 @@ export function tiposDoSorteio(f = ler('filtros')) {
   return ok;
 }
 
+// ---------- Espera longa (molho, marinada, geladeira) ----------
+// O tempoMin conta só o trabalho na cozinha; estas esperas vêm dos passos e somam ao tempo total.
+const PASSO_ESPERA = /molho|marin|dessalg|geladeira|gele\b|freezer|firmar|secar|crescer|véspera|descans|repous/i;
+const PASSO_FOGO = /\b(asse|cozinhe|frite|ferva|refogue)\b|pressão|forno/i;
+const cacheEspera = new Map();
+/** Horas de espera que o prato pede antes de ficar pronto (só conta a partir de 2 h). */
+export function esperaHoras(p) {
+  if (!p?.passos?.length) return 0;
+  if (cacheEspera.has(p.id)) return cacheEspera.get(p.id);
+  let h = 0;
+  for (const s of p.passos) {
+    if (!PASSO_ESPERA.test(s) || PASSO_FOGO.test(s)) continue;
+    const horas = [...s.matchAll(/(\d+)\s*horas?/gi)].map((m) => +m[1]);
+    h += horas.length ? Math.max(...horas) : /véspera/i.test(s) ? 12 : 0;
+  }
+  if (h < 2) h = 0;
+  cacheEspera.set(p.id, h);
+  return h;
+}
+/** Tempo total em minutos, contando a espera. */
+export const tempoTotal = (p) => (p.tempoMin || 0) + esperaHoras(p) * 60;
+export const textoEspera = (h) => (h >= 36 ? `comece ${Math.round(h / 24)} dias antes` : h >= 12 ? 'comece na véspera' : `+${h} h de espera`);
+
 // ---------- Filtros ----------
 export const GRUPOS_FILTRO = [
   { chave: 'tipo', titulo: 'Tipo', opcoes: TIPOS },
@@ -127,9 +150,10 @@ export function passaFiltros(p, f) {
   if (f.tipo?.length && !f.tipo.includes(tipoDe(p))) return false;
   if (f.refeicao?.length && p.refeicao?.length && !p.refeicao.some((r) => f.refeicao.includes(r))) return false;
   if (f.tempo && p.tempoMin) {
-    if (f.tempo === '30' && p.tempoMin > 30) return false;
-    if (f.tempo === '60' && p.tempoMin > 60) return false;
-    if (f.tempo === 'mais' && p.tempoMin <= 60) return false;
+    const t = tempoTotal(p);
+    if (f.tempo === '30' && t > 30) return false;
+    if (f.tempo === '60' && t > 60) return false;
+    if (f.tempo === 'mais' && t <= 60) return false;
   }
   for (const k of ['dificuldade', 'custo', 'regiao']) if (f[k]?.length && p[k] && !f[k].includes(p[k])) return false;
   if (f.restricoes?.length && !f.restricoes.every((r) => (p.restricoes || []).includes(r))) return false;
