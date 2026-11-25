@@ -1,6 +1,6 @@
 // Service worker: "rede primeiro" para o app (as mudanças chegam sempre que há internet)
 // e cópia local para funcionar sem conexão. Fotos: usa a cópia local e atualiza em segundo plano.
-const CACHE = 'arh-v5';
+const CACHE = 'arh-v6';
 const ESSENCIAIS = ['./', 'index.html', 'css/app.css', 'data/pratos.json', 'icone.svg', 'manifest.webmanifest',
   'js/app.js', 'js/util.js', 'js/store.js', 'js/catalogo.js', 'js/sorteio.js', 'js/audio.js', 'js/abertura.js', 'js/roleta.js',
   'js/modal.js', 'js/carrossel.js', 'js/cozinha.js', 'js/nav.js', 'js/telas.js', 'js/telas2.js'];

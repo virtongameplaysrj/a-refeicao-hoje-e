@@ -177,19 +177,23 @@ export function telaCategorias() {
     const cats = [...CATEGORIAS]; if (meusPratos().length) cats.push(MEUS);
     const ocultos = ler('ocultos').length;
     const btnMeu = h('button', { class: 'btn fantasma', onClick: () => ir('meu-prato') }, '＋ Meu prato');
-    aoSegurar(btnMeu, 700, async () => {
-      if (!ler('ocultos').length) { toast('Nenhum prato oculto para restaurar.'); return; }
-      if (await confirmar('Restaurar pratos ocultos?', `${ler('ocultos').length} prato(s) voltarão às prateleiras e aos sorteios.`, 'Restaurar')) {
+    async function restaurarOcultos() {
+      const nomes = ler('ocultos').map((id) => porId(id)?.nome).filter(Boolean);
+      if (!nomes.length) { gravar('ocultos', []); toast('Nenhum prato oculto para restaurar.'); montar(); return; }
+      const lista = nomes.length > 6 ? `${nomes.slice(0, 6).join(', ')} e mais ${nomes.length - 6}` : nomes.join(', ');
+      if (await confirmar('Restaurar pratos ocultos?', `${lista} ${nomes.length > 1 ? 'voltarão' : 'voltará'} às prateleiras e aos sorteios.`, 'Restaurar')) {
         gravar('ocultos', []); toast('Pratos restaurados ✨'); montar();
       }
-    });
+    }
+    aoSegurar(btnMeu, 700, restaurarOcultos);   // atalho antigo continua valendo
     trocar(el, 
       topo('📚 Categorias', { extra: h('span', { class: 'contador' }, `${todos().length} pratos`) }),
       barraFiltrosAtivos(montar),
       h('div', { class: 'btns dois' },
         h('button', { class: 'btn primario', onClick: () => sortearComRoleta({ modo: 'catalogo' }, 'Me surpreenda!') }, '🎲 Me surpreenda'),
         btnMeu),
-      ocultos ? h('p', { class: 'credito', style: { textAlign: 'center' } }, `${ocultos} prato(s) oculto(s) · segure “＋ Meu prato” para restaurar`) : null,
+      ocultos ? h('button', { class: 'btn pequeno fantasma bloco', style: { marginBottom: '12px' }, onClick: restaurarOcultos },
+        `🙈 ${ocultos} prato${ocultos > 1 ? 's' : ''} oculto${ocultos > 1 ? 's' : ''} · toque para restaurar`) : null,
       h('div', { class: 'grade' }, cats.map((c, i) => {
         const pratos = daCategoria(c.slug), visiveis = aplicarFiltros(pratos);
         return h('button', { class: 'cat', onClick: () => ir('cat/' + c.slug) },
@@ -274,16 +278,18 @@ export function telaPrateleira(slug) {
       regPalco.textContent = [p.regiao, categoriaPorNome(p.categoria) === MEUS ? 'Meu prato' : ''].filter(Boolean).join(' · ') || cat.nome;
       const etq = [tipoDe(p) !== 'principal' && ROTULO_TIPO[tipoDe(p)], p.regiao && `📍 ${p.regiao}`, p.tempoMin && `⏱️ ${formatarMinutos(p.tempoMin)}`,
         esperaHoras(p) && `⏳ ${textoEspera(esperaHoras(p))}`, p.dificuldade && `👩‍🍳 ${p.dificuldade}`, p.custo && `💰 ${p.custo}`].filter(Boolean);
-      trocar(info, 
+      trocar(info,
+        // Botões logo abaixo do carrossel (antes ficavam abaixo da dobra, com o link do YouTube colado em cima).
+        h('div', { class: 'btns', style: { marginTop: '10px' } },
+          h('button', { class: 'btn primario bloco', onClick: () => ir('receita/' + encodeURIComponent(p.id)) }, '📖 Ver receita'),
+          h('button', { class: 'btn milho bloco', onClick: () => sortearComRoleta({ modo: 'catalogo', lista: doCat }, `Sorteando em ${cat.nome}...`) }, '🎲 Sortear daqui')),
+        p.descricao ? h('p', { class: 'desc' }, p.descricao) : null,
         h('div', { class: 'etiquetas' }, etq.map((t) => h('span', { class: 'etq' }, t)),
           (p.restricoes || []).map((r) => h('span', { class: 'etq verde' }, { vegetariano: '🌱 vegetariano', 'sem-lactose': 'sem lactose', 'sem-gluten': 'sem glúten' }[r] || r))),
-        p.descricao ? h('p', { class: 'desc' }, p.descricao) : null,
-        creditoFoto(p), linkYoutube(p),
-        h('div', { class: 'btns' },
-          h('button', { class: 'btn primario bloco', onClick: () => ir('receita/' + encodeURIComponent(p.id)) }, '📖 Ver receita'),
-          h('div', { class: 'btns dois', style: { margin: 0 } },
-            h('button', { class: 'btn milho', onClick: () => sortearComRoleta({ modo: 'catalogo', lista: doCat }, `Sorteando em ${cat.nome}...`) }, '🎲 Sortear daqui'),
-            h('button', { class: 'btn fantasma', onClick: () => ocultar(p) }, '🙈 Ocultar prato'))));
+        creditoFoto(p),
+        h('div', { class: 'btns dois', style: { alignItems: 'center' } },
+          linkYoutube(p),
+          h('button', { class: 'btn pequeno fantasma', onClick: () => ocultar(p) }, '🙈 Ocultar prato')));
     }
     function ocultar(p) {
       alterar('ocultos', (l) => { if (!l.includes(p.id)) l.push(p.id); });

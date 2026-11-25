@@ -321,8 +321,10 @@ export function telaLista() {
 }
 
 // ---------- 10. Meu histórico ----------
+const POR_PAGINA = 30;
 export function telaHistorico() {
   const el = h('main', { class: 'tela' });
+  let mostrar = POR_PAGINA;
   function montar() {
     const hist = ler('historico');
     const porPrato = new Map();
@@ -345,12 +347,15 @@ export function telaHistorico() {
           h('div', null, a.nome, h('small', null, `última vez: ${formatarData(a.ultima)}${a.notas ? ` · média ${'⭐'.repeat(Math.round(a.soma / a.notas))}` : ''}`)),
           h('span', { class: 'vezes' }, `${a.vezes}x`)))),
         h('h2', { class: 'secao' }, '🗓️ Refeições'),
-        h('div', { class: 'card' }, hist.map((x, i) => h('div', { class: 'hist-item' },
+        h('div', { class: 'card' }, hist.slice(0, mostrar).map((x, i) => h('div', { class: 'hist-item' },
           imgPrato(pratoDe(x.id, x.nome)),
           h('div', null, x.nome, h('small', null, `${formatarData(x.em)}${x.minutos ? ` · ${formatarMinutos(x.minutos)}` : ''} · ${x.estrelas ? '⭐'.repeat(x.estrelas) : 'sem nota'}`)),
           h('button', { class: 'icone-btn', 'aria-label': 'Apagar registro', onClick: async () => {
             if (await confirmar('Apagar este registro?', `${x.nome} em ${formatarData(x.em)}`, 'Apagar')) { alterar('historico', (l) => { l.splice(i, 1); }); montar(); }
-          } }, '✕')))),
+          } }, '✕'))),
+          // Muitos anos de uso = milhares de linhas: mostra aos poucos para a tela abrir rápido.
+          hist.length > mostrar ? h('button', { class: 'btn pequeno bloco', style: { marginTop: '10px' }, onClick: () => { const y = window.scrollY; mostrar += POR_PAGINA; montar(); window.scrollTo(0, y); } },
+            `Ver mais ${Math.min(POR_PAGINA, hist.length - mostrar)} (de ${hist.length - mostrar} restantes)`) : null),
       ] : h('div', { class: 'vazio' }, h('div', { class: 'grande-ico' }, '🍽️'), h('p', null, 'Quando terminar de cozinhar um prato, ele aparece aqui.')),
       h('h2', { class: 'secao' }, '💾 Backup'),
       h('div', { class: 'card' },
