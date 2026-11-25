@@ -110,6 +110,7 @@ export function qtdContavel(q, item) {
   return Math.max(1, Math.round(q));
 }
 
+const INTEIRAS = new Set(['dente', 'pitada', 'folha', 'ramo', 'espiga']);
 /** "2 xícaras de arroz", "3 ovos", "sal a gosto" — já multiplicado pelo fator de porções. */
 export function textoIngrediente(ing, fator = 1) {
   const item = ing.item;
@@ -117,6 +118,7 @@ export function textoIngrediente(ing, fator = 1) {
   if (ing.quantidade == null) return item;
   let q = ing.quantidade * fator;
   if (!ing.unidade) q = qtdContavel(q, item);
+  else if (INTEIRAS.has(ing.unidade)) q = Math.max(1, Math.round(q));   // "¾ dente de alho" → "1 dente"
   let txt = formatarQtd(q, ing.unidade), un = ing.unidade;
   if (txt.includes('|')) [txt, un] = txt.split('|');
   // Concorda com o número exibido (1,07 aparece como "1" → singular).
