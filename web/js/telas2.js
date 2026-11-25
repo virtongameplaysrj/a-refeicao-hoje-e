@@ -7,6 +7,7 @@ import { temposNoPasso, iniciarCozinha, criarTimer, removerTimer, pararAlarme, t
 import { topo, imgPrato, estrelasEl, creditoFoto, linkYoutube } from './telas.js';
 import { ir, voltar, substituir } from './nav.js';
 
+const porcoesTxt = (n) => `${n} porç${n > 1 ? 'ões' : 'ão'}`;
 const ROT_RESTR = { vegetariano: '🌱 vegetariano', 'sem-lactose': 'sem lactose', 'sem-gluten': 'sem glúten' };
 const naoEncontrado = (t) => ({ el: h('main', { class: 'tela' }, topo(t), h('div', { class: 'vazio' }, h('div', { class: 'grande-ico' }, '🤷'), h('p', null, 'Prato não encontrado.'))) });
 
@@ -183,7 +184,7 @@ export function telaCozinhando() {
   }
 
   el.append(
-    h('div', { class: 'coz-topo' }, imgPrato(p), h('div', null, h('h2', null, p.nome), h('small', { style: { color: 'var(--suave)' } }, `${coz.porcoes} porções`))),
+    h('div', { class: 'coz-topo' }, imgPrato(p), h('div', null, h('h2', null, p.nome), h('small', { style: { color: 'var(--suave)' } }, porcoesTxt(coz.porcoes)))),
     relogio, h('small', null, `de preparo · começou às ${inicioTxt}`),
     passoBox, timersBox,
     p.ingredientes.length ? h('details', { class: 'card' }, h('summary', null, '🧺 Ver ingredientes'),
@@ -252,7 +253,7 @@ export function telaLista() {
           despensa.map((s) => linha(s.chave, s.item))) : null);
     } else {
       corpo = h('div', null, lista.map((r) => h('div', { class: 'grupo-receita card' },
-        h('h3', null, h('span', null, `${r.nome} `, h('small', { style: { color: 'var(--suave)', fontSize: '14px' } }, `(${r.porcoes} porções)`)),
+        h('h3', null, h('span', null, `${r.nome} `, h('small', { style: { color: 'var(--suave)', fontSize: '14px' } }, `(${porcoesTxt(r.porcoes)})`)),
           h('button', { class: 'icone-btn', 'aria-label': 'Tirar receita da lista', onClick: () => { alterar('lista', (l) => l.filter((x) => x.receitaId !== r.receitaId)); montar(); } }, '✕')),
         r.itens.map((i) => linha(chaveItem(i), textoIngrediente(i))))));
     }
@@ -282,7 +283,7 @@ export function telaLista() {
     const { compras, despensa } = somar(lista);
     const linhas = compras.map((s) => `${m[s.chave] ? '☑' : '☐'} ${textoSomado(s)}`);
     const desp = despensa.length ? `\n\n🧂 Despensa (confira se tem em casa): ${despensa.map((s) => s.item).join(', ')}` : '';
-    const texto = `🛒 Lista de compras — A refeição hoje é...\n\n${linhas.join('\n')}${desp}\n\nReceitas: ${lista.map((r) => `${r.nome} (${r.porcoes} porções)`).join('; ')}`;
+    const texto = `🛒 Lista de compras — A refeição hoje é...\n\n${linhas.join('\n')}${desp}\n\nReceitas: ${lista.map((r) => `${r.nome} (${porcoesTxt(r.porcoes)})`).join('; ')}`;
     const r = await compartilharTexto(texto, 'Lista de compras');
     if (r === 'copiado') toast('📋 Lista copiada — é só colar no WhatsApp');
     else if (r === 'falhou') toast('Não consegui compartilhar 😕');
@@ -307,7 +308,7 @@ export function telaHistorico() {
     trocar(el, 
       topo('📖 Meu histórico'),
       h('div', { class: 'resumo-hist' },
-        h('div', { class: 'stat' }, h('b', null, hist.length), h('small', null, 'refeições feitas')),
+        h('div', { class: 'stat' }, h('b', null, hist.length), h('small', null, hist.length === 1 ? 'refeição feita' : 'refeições feitas')),
         h('div', { class: 'stat' }, h('b', null, porPrato.size), h('small', null, 'pratos diferentes'))),
       hist.length ? [
         h('h2', { class: 'secao' }, '🏆 Mais feitos'),
