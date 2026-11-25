@@ -101,6 +101,7 @@ function ConvertTo-Prato($p, [string]$categoria, $fotos) {
     nome        = $p.n
     categoria   = $categoria
     tipo        = $Tipos[[string]$p.tp]
+    vaiBemCom   = [object[]]@($p.vb | Where-Object { $_ })
     regiao      = $p.r
     refeicao    = [object[]]@($p.ref | ForEach-Object { $Refeicoes[$_] })
     tempoMin    = [int]$p.t

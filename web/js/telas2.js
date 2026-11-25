@@ -25,6 +25,7 @@ export function telaReceita(id) {
   };
   const mudar = (d) => { porcoes = clamp(porcoes + d, 1, 40); sessionStorage.setItem('porcoes.' + p.id, porcoes); desenharIngs(); };
   const temReceita = p.ingredientes.length || p.passos.length;
+  const escolhidos = new Set((p.vaiBemCom || []).filter((id) => porId(id)));   // todos marcados de início
   const cat = categoriaPorNome(p.categoria);
 
   const btnFav = h('button', { class: 'btn' });
@@ -58,6 +59,7 @@ export function telaReceita(id) {
       h('div', { class: 'porcoes' }, h('span', null, 'Porções'),
         h('div', { class: 'ctrl' }, h('button', { 'aria-label': 'Menos porções', onClick: () => mudar(-1) }, '−'), valorPorcoes, h('button', { 'aria-label': 'Mais porções', onClick: () => mudar(1) }, '+'))),
       ings] : null,
+    blocoVaiBemCom(p, escolhidos),
     p.passos.length ? [h('h2', { class: 'secao' }, '👩‍🍳 Modo de preparo'), h('ol', { class: 'passos' }, p.passos.map((s) => h('li', null, s)))] : null,
     p.dica && h('div', { class: 'caixa dica' }, h('b', null, '💡 Dica do chef'), p.dica),
     p.curiosidade && h('div', { class: 'caixa curio' }, h('b', null, '📜 Curiosidade'), p.curiosidade),
@@ -67,22 +69,47 @@ export function telaReceita(id) {
       h('button', { class: 'btn pequeno fantasma', onClick: () => excluirMeuPrato(p) }, '🗑️ Excluir')),
     h('div', { class: 'acoes-fixas' },
       h('div', { class: 'btns dois', style: { margin: 0 } }, btnFav,
-        h('button', { class: 'btn', disabled: !p.ingredientes.length, onClick: () => adicionarNaLista(p, porcoes) }, '🛒 Lista')),
+        h('button', { class: 'btn', disabled: !p.ingredientes.length, onClick: () => adicionarNaLista(p, porcoes, [...escolhidos].map(porId).filter(Boolean)) }, '🛒 Lista')),
       h('button', { class: 'btn primario bloco', onClick: () => comecar(p, porcoes) }, '🔥 Começar a cozinhar')),
   );
   desenharIngs();
   return { el };
 }
 
-function adicionarNaLista(p, porcoes) {
-  const fator = porcoes / (p.rendimento || 2);
+/** Põe o prato (e os acompanhamentos escolhidos, na mesma quantidade de porções) na lista de compras. */
+function adicionarNaLista(p, porcoes, extras = []) {
   alterar('lista', (l) => {
-    const itens = p.ingredientes.map((i) => ({ item: i.item, unidade: i.unidade, quantidade: i.quantidade == null ? null : +(i.quantidade * fator).toFixed(3) }));
-    const r = { receitaId: p.id, nome: p.nome, porcoes, itens };
-    const k = l.findIndex((x) => x.receitaId === p.id);
-    if (k >= 0) l[k] = r; else l.push(r);
+    for (const x of [p, ...extras]) {
+      if (!x.ingredientes.length) continue;
+      const fator = porcoes / (x.rendimento || 2);
+      const itens = x.ingredientes.map((i) => ({ item: i.item, unidade: i.unidade, quantidade: i.quantidade == null ? null : +(i.quantidade * fator).toFixed(3) }));
+      const r = { receitaId: x.id, nome: x.nome, porcoes, itens };
+      const k = l.findIndex((y) => y.receitaId === x.id);
+      if (k >= 0) l[k] = r; else l.push(r);
+    }
   });
-  toast(`🛒 Ingredientes de ${p.nome} na lista`, { acao: 'Ver lista', aoAcao: () => ir('lista') });
+  const mais = extras.length ? ` + ${extras.length} acompanhamento${extras.length > 1 ? 's' : ''}` : '';
+  toast(`🛒 ${p.nome}${mais} na lista`, { acao: 'Ver lista', aoAcao: () => ir('lista') });
+}
+
+/** "Vai bem com": acompanhamentos sugeridos, cada um com caixinha para ir junto para a lista. */
+function blocoVaiBemCom(p, escolhidos) {
+  const acomp = (p.vaiBemCom || []).map(porId).filter(Boolean);
+  if (!acomp.length) return null;
+  return [
+    h('h2', { class: 'secao' }, '🍽️ Vai bem com'),
+    h('div', { class: 'card vai-bem' },
+      acomp.map((a) => {
+        const cb = h('input', { type: 'checkbox', checked: escolhidos.has(a.id), 'aria-label': `Levar ${a.nome} para a lista` });
+        cb.addEventListener('click', (e) => e.stopPropagation());
+        cb.addEventListener('change', () => { if (cb.checked) escolhidos.add(a.id); else escolhidos.delete(a.id); });
+        return h('div', { class: 'hist-item', role: 'button', style: { cursor: 'pointer' }, onClick: () => ir('receita/' + encodeURIComponent(a.id)) },
+          imgPrato(a),
+          h('div', null, a.nome, h('small', null, [ROTULO_TIPO[tipoDe(a)], a.tempoMin && formatarMinutos(a.tempoMin)].filter(Boolean).join(' · '))),
+          cb);
+      }),
+      h('small', { style: { display: 'block', color: 'var(--suave)', marginTop: '8px' } }, 'Os marcados vão para a 🛒 Lista junto com este prato, na mesma quantidade de porções. Toque no nome para ver a receita.')),
+  ];
 }
 
 async function comecar(p, porcoes) {

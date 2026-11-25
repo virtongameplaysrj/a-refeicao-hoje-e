@@ -26,7 +26,7 @@ O site tem um *service worker* "rede primeiro": com internet sempre pega a vers�
 4. **Categorias** — 12 categorias com colagem de fotos, "🎲 Me surpreenda" e "＋ Meu prato" (**segure** esse botão para restaurar pratos ocultos).
 5. **Prateleira** — palco com a foto (zoom lento "Ken Burns" ao parar ~0,9 s), carrossel 3D arrastável com inércia, filtros (tipo, refeição, tempo, dificuldade, custo, região, vegetariano/sem lactose/sem glúten), "Ver receita", "Sortear daqui", "Ocultar prato" e link de vídeo no YouTube.
 6. **Roleta** — sobe com rufar de tambor, gira com marchinha de circo; toque (ou 15 s) e ela para **exatamente** no prato sorteado. "Vou fazer este!" ou "Hoje não, escolha outro". Os filtros ativos valem para o sorteio.
-7. **Receita** — porções que recalculam as quantidades, ingredientes, passos, dica do chef e curiosidade.
+7. **Receita** — porções que recalculam as quantidades, ingredientes, **"Vai bem com"** (acompanhamentos sugeridos, que vão para a lista de compras junto com o prato), passos, dica do chef e curiosidade.
 8. **Cozinhando agora** — cronômetro que continua com o app fechado (guarda a hora de início), um passo por vez em letra grande, timers automáticos quando o passo cita um tempo ("asse por 40 minutos") com alarme sonoro, "✅ Terminei" com nota; mais de 4 h pergunta "Esqueceu de terminar?".
 9. **Lista de compras** — ingredientes somados (ou por receita), caixinhas, "Limpar marcados" e "Compartilhar como texto".
 10. **Meu histórico** — refeições, notas, quantas vezes fez cada prato e backup.
@@ -124,6 +124,7 @@ Os pratos **não** são editados direto no `web/data/pratos.json`: ele é gerado
 | `c` | custo | `1` barato, `2` médio, `3` caro |
 | `x` | restrições atendidas | letras juntas: `v` vegetariano, `l` sem lactose, `g` sem glúten (ex.: `"vlg"`, ou `""`) |
 | `p` | rendimento (porções) | número |
+| `vb` | vai bem com (opcional) | lista de ids de acompanhamentos (`A`) ou petiscos (`E`), ex.: `["arroz-branco-soltinho","couve-refogada-a-mineira"]` |
 | `tp` | papel na refeição | `P` prato principal, `A` acompanhamento, `E` petisco/porção, `L` lanche/salgado, `D` doce, `B` bebida |
 | `i` | ingredientes: `quantidade\|unidade\|item` | quantidade `2`, `1/2`, `1 1/2` ou vazio; unidade vazia = contável ("3 ovos") |
 | `s` | passos (mínimo 3) | textos |

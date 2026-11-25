@@ -14,10 +14,10 @@ if (-not $Todos -and -not $Lote) { throw 'Informe -Lote <nome> ou -Todos' }
 $alvos = if ($Todos) { $arquivos.BaseName } else { @($Lote) }
 
 # Índice global de nomes normalizados e ids (de todos os lotes existentes)
-$porNome = @{}; $porId = @{}
+$porNome = @{}; $porId = @{}; $tipoPorId = @{}
 foreach ($arq in $arquivos) {
   foreach ($p in (Read-Json $arq.FullName)) {
-    $k = Get-NomeNormalizado $p.n; $id = Get-Slug $p.n
+    $k = Get-NomeNormalizado $p.n; $id = Get-Slug $p.n; $tipoPorId[$id] = [string]$p.tp
     if (-not $porNome[$k]) { $porNome[$k] = @() }; $porNome[$k] += "$($arq.BaseName): $($p.n)"
     if (-not $porId[$id])  { $porId[$id] = @() };  $porId[$id]  += "$($arq.BaseName): $($p.n)"
   }
@@ -37,6 +37,11 @@ foreach ($nomeLote in $alvos) {
     foreach ($e in (Test-Prato $p)) { Write-Host "  ERRO [$($p.n)] $e" -ForegroundColor Red; $falhas++ }
     $k = Get-NomeNormalizado $p.n
     if ($porNome[$k].Count -gt 1) { Write-Host "  ERRO nome repetido '$k': $($porNome[$k] -join ' | ')" -ForegroundColor Red; $falhas++ }
+    # "vb" (vai bem com): ids de acompanhamentos (A) ou petiscos (E) que existem no catálogo
+    foreach ($v in @($p.vb | Where-Object { $_ })) {
+      if (-not $tipoPorId.ContainsKey($v)) { Write-Host "  ERRO [$($p.n)] vai bem com '$v': id não existe" -ForegroundColor Red; $falhas++ }
+      elseif ('A','E' -notcontains $tipoPorId[$v]) { Write-Host "  ERRO [$($p.n)] vai bem com '$v': não é acompanhamento nem petisco" -ForegroundColor Red; $falhas++ }
+    }
     $id = Get-Slug $p.n
     if ($porId[$id].Count -gt 1) { Write-Host "  ERRO id repetido '$id': $($porId[$id] -join ' | ')" -ForegroundColor Red; $falhas++ }
   }

@@ -214,6 +214,7 @@ ol.passos li::before { content: counter(p); position: absolute; left: 0; top: 0;
 .hist-item { display: grid; grid-template-columns: 52px 1fr auto; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--linha); }
 .hist-item img { width: 52px; height: 52px; border-radius: 10px; object-fit: cover; }
 .hist-item small { display: block; color: var(--suave); }
+.vai-bem .hist-item input { width: 26px; height: 26px; margin: 0; accent-color: var(--folha); }
 .vezes { background: var(--terracota); color: #fff; border-radius: 99px; padding: 2px 10px; font-weight: 700; font-size: 14px; }
 textarea.backup { width: 100%; min-height: 140px; border-radius: 12px; border: 1px solid var(--linha); background: var(--bg2); padding: 10px; font-family: ui-monospace, monospace; font-size: 12px; }
 
