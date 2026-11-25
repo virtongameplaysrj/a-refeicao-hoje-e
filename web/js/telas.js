@@ -58,7 +58,10 @@ function sortearComRoleta(opcoes, titulo) {
 
 // ---------- 2. Início ----------
 export function telaInicio() {
-  const coz = ler('cozinhando'), pc = coz && porId(coz.id);
+  const coz = ler('cozinhando');
+  // Prato principal primeiro: "Bife acebolado + 2", e não "Arroz + 2".
+  const noFogo = (coz?.panelas || []).map((pa) => porId(pa.id)).filter(Boolean).sort((a, b) => (tipoDe(a) === 'principal' ? 0 : 1) - (tipoDe(b) === 'principal' ? 0 : 1));
+  const pc = noFogo.length ? { nome: noFogo.length > 1 ? `${noFogo[0].nome} + ${noFogo.length - 1}` : noFogo[0].nome } : null;
   const favs = ler('favoritos').map((f) => porId(f.id)).filter(Boolean);
   const lista = ler('lista');
   const nItens = lista.reduce((n, r) => n + r.itens.length, 0);

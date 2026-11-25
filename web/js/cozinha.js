@@ -20,9 +20,29 @@ export function temposNoPasso(txt) {
   return achados.filter((a) => (vistos.has(a.seg) ? false : vistos.add(a.seg)));
 }
 
-export function iniciarCozinha(prato, porcoes) {
-  gravar('cozinhando', { id: prato.id, inicio: Date.now(), passo: 0, porcoes, timers: [] });
+// ---------- Sessão com várias panelas (ex.: bife + arroz + feijão) ----------
+/** Começa um preparo novo com estes pratos, todos com o mesmo número de porções. O primeiro fica em foco. */
+export function iniciarCozinha(pratos, porcoes) {
+  const lista = [].concat(pratos);
+  gravar('cozinhando', { inicio: Date.now(), ativa: lista[0].id, panelas: lista.map((p) => ({ id: p.id, porcoes, passo: 0, pronto: false })), timers: [] });
 }
+/** Põe mais uma panela no preparo em andamento (sem zerar o cronômetro). */
+export function juntarPanela(prato, porcoes) {
+  alterar('cozinhando', (c) => {
+    if (!c) return;
+    if (!c.panelas.some((pa) => pa.id === prato.id)) c.panelas.push({ id: prato.id, porcoes, passo: 0, pronto: false });
+    c.ativa = prato.id;
+  });
+}
+export function tirarPanela(id) {
+  alterar('cozinhando', (c) => {
+    if (!c) return;
+    c.panelas = c.panelas.filter((pa) => pa.id !== id);
+    if (c.ativa === id) c.ativa = c.panelas[0]?.id;
+  });
+  if (!ler('cozinhando')?.panelas.length) gravar('cozinhando', null);
+}
+export const panelasEmPreparo = () => ler('cozinhando')?.panelas || [];
 /** Liga um timer; devolve false se esse mesmo timer já está correndo (toque repetido no botão). */
 export function criarTimer(seg, rotulo) {
   let criou = false;

@@ -9,7 +9,7 @@ export const PADROES = {
   lista: [],            // lista de compras: [{receitaId, nome, porcoes, itens:[{item, quantidade, unidade}]}]
   marcados: {},         // itens marcados na lista: {chave: true}
   filtros: { tipo: [], refeicao: [], tempo: null, dificuldade: [], custo: [], regiao: [], restricoes: [] },
-  cozinhando: null,     // {id, inicio, passo, porcoes, timers:[{id, rotulo, fim, total, avisado}]}
+  cozinhando: null,     // {inicio, ativa, panelas:[{id, porcoes, passo, pronto}], timers:[{id, rotulo, fim, total, avisado}]}
   sorteio: { recusas: {}, ultimos: [] },
   rascunhoGosto: null,
   rascunhoMeuPrato: null,
@@ -37,8 +37,14 @@ export function sanear(chave, v) {
   if (!(chave in PADROES)) return v;
   if (Array.isArray(p)) return Array.isArray(v) ? (ITEM_VALIDO[chave] ? v.filter(ITEM_VALIDO[chave]) : v) : null;
   if (chave === 'cozinhando') {
-    if (!comId(v) || !Number.isFinite(v.inicio)) return null;
-    return { ...v, passo: Number.isFinite(v.passo) ? v.passo : 0, timers: Array.isArray(v.timers) ? v.timers.filter((t) => ehObj(t) && Number.isFinite(t.fim)) : [] };
+    if (!ehObj(v) || !Number.isFinite(v.inicio)) return null;
+    // Formato antigo (uma receita só: {id, passo, porcoes}) vira uma sessão com uma panela.
+    let panelas = Array.isArray(v.panelas) ? v.panelas : comId(v) ? [{ id: v.id, porcoes: v.porcoes, passo: v.passo }] : [];
+    panelas = panelas.filter(comId).map((pa) => ({ id: pa.id, porcoes: Number.isFinite(pa.porcoes) && pa.porcoes > 0 ? pa.porcoes : 2,
+      passo: Number.isFinite(pa.passo) ? pa.passo : 0, pronto: !!pa.pronto }));
+    if (!panelas.length) return null;
+    const ativa = panelas.some((pa) => pa.id === v.ativa) ? v.ativa : panelas[0].id;
+    return { inicio: v.inicio, ativa, panelas, timers: Array.isArray(v.timers) ? v.timers.filter((t) => ehObj(t) && Number.isFinite(t.fim)) : [] };
   }
   if (ehObj(p)) {
     if (!ehObj(v)) return null;

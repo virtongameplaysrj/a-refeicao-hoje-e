@@ -1,9 +1,9 @@
 // Telas: Receita, Cozinhando agora, Lista de compras, Meu histórico, Meu prato.
 import { h, trocar, normalizar, toast, textoIngrediente, formatarMinutos, formatarRelogio, formatarData, copiarTexto, compartilharTexto, clamp, concordar } from './util.js';
 import { ler, gravar, alterar, favorito, favoritar, desfavoritar, registrarRefeicao, exportarBackup, importarBackup } from './store.js';
-import { CATEGORIAS, MEUS, categoriaPorNome, porId, reindexar, meusPratos, fotoDe, tipoDe, ROTULO_TIPO, TIPOS, esperaHoras, textoEspera } from './catalogo.js';
+import { CATEGORIAS, MEUS, categoriaPorNome, porId, reindexar, meusPratos, fotoDe, tipoDe, ROTULO_TIPO, TIPOS, esperaHoras, textoEspera, tempoTotal } from './catalogo.js';
 import { dialogo, confirmar } from './modal.js';
-import { temposNoPasso, iniciarCozinha, criarTimer, removerTimer, pararAlarme, timerTocando } from './cozinha.js';
+import { temposNoPasso, iniciarCozinha, juntarPanela, tirarPanela, criarTimer, removerTimer, pararAlarme } from './cozinha.js';
 import { topo, imgPrato, estrelasEl, creditoFoto, linkYoutube } from './telas.js';
 import { ir, voltar, substituir } from './nav.js';
 
@@ -26,6 +26,9 @@ export function telaReceita(id) {
   const mudar = (d) => { porcoes = clamp(porcoes + d, 1, 40); sessionStorage.setItem('porcoes.' + p.id, porcoes); desenharIngs(); };
   const temReceita = p.ingredientes.length || p.passos.length;
   const escolhidos = new Set((p.vaiBemCom || []).filter((id) => porId(id)));   // todos marcados de início
+  const btnCozinhar = h('button', { class: 'btn primario bloco', onClick: () => comecar(p, porcoes, [...escolhidos].map(porId).filter(Boolean)) });
+  const pintarCozinhar = () => { const n = escolhidos.size; btnCozinhar.textContent = n ? `🔥 Cozinhar com ${n} acompanhamento${n > 1 ? 's' : ''}` : '🔥 Começar a cozinhar'; };
+  pintarCozinhar();
   const cat = categoriaPorNome(p.categoria);
 
   const btnFav = h('button', { class: 'btn' });
@@ -59,7 +62,7 @@ export function telaReceita(id) {
       h('div', { class: 'porcoes' }, h('span', null, 'Porções'),
         h('div', { class: 'ctrl' }, h('button', { 'aria-label': 'Menos porções', onClick: () => mudar(-1) }, '−'), valorPorcoes, h('button', { 'aria-label': 'Mais porções', onClick: () => mudar(1) }, '+'))),
       ings] : null,
-    blocoVaiBemCom(p, escolhidos),
+    blocoVaiBemCom(p, escolhidos, pintarCozinhar),
     p.passos.length ? [h('h2', { class: 'secao' }, '👩‍🍳 Modo de preparo'), h('ol', { class: 'passos' }, p.passos.map((s) => h('li', null, s)))] : null,
     p.dica && h('div', { class: 'caixa dica' }, h('b', null, '💡 Dica do chef'), p.dica),
     p.curiosidade && h('div', { class: 'caixa curio' }, h('b', null, '📜 Curiosidade'), p.curiosidade),
@@ -70,7 +73,7 @@ export function telaReceita(id) {
     h('div', { class: 'acoes-fixas' },
       h('div', { class: 'btns dois', style: { margin: 0 } }, btnFav,
         h('button', { class: 'btn', disabled: !p.ingredientes.length, onClick: () => adicionarNaLista(p, porcoes, [...escolhidos].map(porId).filter(Boolean)) }, '🛒 Lista')),
-      h('button', { class: 'btn primario bloco', onClick: () => comecar(p, porcoes) }, '🔥 Começar a cozinhar')),
+      btnCozinhar),
   );
   desenharIngs();
   return { el };
@@ -93,7 +96,7 @@ function adicionarNaLista(p, porcoes, extras = []) {
 }
 
 /** "Vai bem com": acompanhamentos sugeridos, cada um com caixinha para ir junto para a lista. */
-function blocoVaiBemCom(p, escolhidos) {
+function blocoVaiBemCom(p, escolhidos, aoMudar) {
   const acomp = (p.vaiBemCom || []).map(porId).filter(Boolean);
   if (!acomp.length) return null;
   return [
@@ -102,24 +105,36 @@ function blocoVaiBemCom(p, escolhidos) {
       acomp.map((a) => {
         const cb = h('input', { type: 'checkbox', checked: escolhidos.has(a.id), 'aria-label': `Levar ${a.nome} para a lista` });
         cb.addEventListener('click', (e) => e.stopPropagation());
-        cb.addEventListener('change', () => { if (cb.checked) escolhidos.add(a.id); else escolhidos.delete(a.id); });
+        cb.addEventListener('change', () => { if (cb.checked) escolhidos.add(a.id); else escolhidos.delete(a.id); aoMudar?.(); });
         return h('div', { class: 'hist-item', role: 'button', style: { cursor: 'pointer' }, onClick: () => ir('receita/' + encodeURIComponent(a.id)) },
           imgPrato(a),
           h('div', null, a.nome, h('small', null, [ROTULO_TIPO[tipoDe(a)], a.tempoMin && formatarMinutos(a.tempoMin),
             esperaHoras(a) && `⏳ ${textoEspera(esperaHoras(a))}`].filter(Boolean).join(' · '))),
           cb);
       }),
-      h('small', { style: { display: 'block', color: 'var(--suave)', marginTop: '8px' } }, 'Os marcados vão para a 🛒 Lista junto com este prato, na mesma quantidade de porções. Toque no nome para ver a receita.')),
+      h('small', { style: { display: 'block', color: 'var(--suave)', marginTop: '8px' } }, 'Os marcados vão junto para a 🛒 Lista e para o 🔥 preparo, na mesma quantidade de porções. Toque no nome para ver a receita.')),
   ];
 }
 
-async function comecar(p, porcoes) {
+/** Começa a cozinhar o prato e os acompanhamentos marcados; se já houver preparo, oferece juntar ou trocar. */
+async function comecar(p, porcoes, extras = []) {
   const atual = ler('cozinhando');
-  if (atual && atual.id !== p.id) {
-    const outro = porId(atual.id);
-    if (!(await confirmar('Já tem panela no fogo!', `Você está cozinhando ${outro?.nome || 'outro prato'}. Quer trocar por ${p.nome}?`, 'Trocar', 'Manter'))) return;
+  const novos = [p, ...extras];
+  if (atual && !atual.panelas.some((pa) => pa.id === p.id)) {
+    const nomes = atual.panelas.map((pa) => porId(pa.id)?.nome).filter(Boolean).join(', ');
+    const r = await dialogo({
+      titulo: 'Já tem panela no fogo! 🔥', texto: `Você está cozinhando ${nomes || 'outro prato'}. Quer juntar ${p.nome}${extras.length ? ' e os acompanhamentos' : ''} a esse preparo?`,
+      botoes: [{ rotulo: '➕ Juntar ao preparo', classe: 'primario', valor: 'juntar' }, { rotulo: 'Começar do zero', valor: 'trocar' }, { rotulo: 'Cancelar', classe: 'fantasma', valor: false }],
+    });
+    if (!r) return;
+    if (r === 'juntar') { for (const x of novos.slice().reverse()) juntarPanela(x, porcoes); ir('cozinhando'); return; }
   }
-  if (!atual || atual.id !== p.id) { pararAlarme(); iniciarCozinha(p, porcoes); }
+  if (!atual || !atual.panelas.some((pa) => pa.id === p.id)) {
+    pararAlarme();
+    // Foco na panela que demora mais: é por ela que se começa.
+    const ordem = novos.slice().sort((a, b) => tempoTotal(b) - tempoTotal(a));
+    iniciarCozinha(ordem, porcoes);
+  }
   ir('cozinhando');
 }
 
@@ -132,36 +147,90 @@ async function excluirMeuPrato(p) {
 }
 
 // ---------- 8. Cozinhando agora ----------
+// Uma sessão pode ter várias panelas (bife + arroz + feijão): uma aba por prato, cada uma com o seu passo;
+// cronômetro e timers são da sessão inteira.
 export function telaCozinhando() {
-  const coz = ler('cozinhando'), p = coz && porId(coz.id);
   const el = h('main', { class: 'tela' }, topo('🔥 Cozinhando agora'));
-  if (!p) {
+  const pratosDe = (c) => (c?.panelas || []).map((pa) => ({ pa, p: porId(pa.id) })).filter((x) => x.p);
+  const coz0 = ler('cozinhando');
+  if (!pratosDe(coz0).length) {
     el.append(h('div', { class: 'vazio' }, h('div', { class: 'grande-ico' }, '🍳'), h('p', null, 'Nenhum preparo em andamento.'),
       h('button', { class: 'btn primario', onClick: () => ir('categorias') }, 'Escolher um prato')));
-    if (coz && !p) gravar('cozinhando', null);
+    if (coz0) gravar('cozinhando', null);
     return { el };
   }
   const relogio = h('div', { class: 'cronometro', 'aria-live': 'off' });
-  const inicioTxt = new Date(coz.inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const inicioTxt = new Date(coz0.inicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const abas = h('div', { class: 'panelas' });
+  const cabeca = h('div', { class: 'coz-topo' });
+  const dicaOrdem = h('div');
   const passoBox = h('div', { class: 'passo-grande' });
   const timersBox = h('div', { class: 'timers' });
-  const n = p.passos.length;
+  const ingsBox = h('div');
 
-  function desenharPasso() {
-    const c = ler('cozinhando'); const i = clamp(c.passo || 0, 0, Math.max(0, n - 1));
-    if (!n) { trocar(passoBox, h('p', null, 'Este prato não tem passos cadastrados.'), linkYoutube(p)); return; }
-    const texto = p.passos[i];
-    trocar(passoBox, 
-      h('div', { class: 'num' }, `Passo ${i + 1} de ${n}`),
-      h('p', null, texto),
-      temposNoPasso(texto).map((t) => h('button', { class: 'btn milho bloco', style: { marginBottom: '8px' }, onClick: () => { const ok = criarTimer(t.seg, `Passo ${i + 1}: ${t.rotulo}`); toast(ok ? `⏱️ Timer de ${formatarMinutos(Math.round(t.seg / 60))} ligado` : 'Esse timer já está correndo ⏱️'); desenharTimers(); } },
-        `⏱️ Timer de ${formatarMinutos(Math.round(t.seg / 60))}`)),
-      i === n - 1 ? h('small', { style: { color: 'var(--suave)', marginBottom: '8px' } }, 'Último passo! Toque em “Terminei” quando acabar.') : null,
-      h('div', { class: 'btns dois', style: { margin: 0 } },
-        h('button', { class: 'btn', disabled: i === 0, onClick: () => irPasso(i - 1) }, '◀ Anterior'),
-        h('button', { class: 'btn primario', disabled: i === n - 1, onClick: () => irPasso(i + 1) }, 'Próximo ▶')));
+  const estado = () => {
+    const c = ler('cozinhando'); const lista = pratosDe(c);
+    return { c, lista, sel: lista.find((x) => x.pa.id === c?.ativa) || lista[0] };
+  };
+  const focar = (id) => { alterar('cozinhando', (c) => { c.ativa = id; }); desenhar(); };
+
+  function desenhar() {
+    const { c, lista, sel } = estado();
+    if (!sel) { substituir('inicio'); return; }
+    const varias = lista.length > 1;
+    trocar(abas, varias ? lista.map(({ pa, p }) => h('button', {
+      class: 'panela' + (pa.id === sel.pa.id ? ' on' : '') + (pa.pronto ? ' pronta' : ''), 'aria-pressed': String(pa.id === sel.pa.id), onClick: () => focar(pa.id) },
+      imgPrato(p), h('span', null, p.nome),
+      h('small', null, pa.pronto ? '✅ pronto' : `passo ${Math.min(pa.passo + 1, p.passos.length || 1)}/${p.passos.length || 1}`))) : null);
+    trocar(cabeca, imgPrato(sel.p), h('div', { style: { flex: 1 } }, h('h2', null, sel.p.nome),
+      h('small', { style: { color: 'var(--suave)' } }, porcoesTxt(sel.pa.porcoes)),
+      varias ? h('button', { class: 'btn pequeno fantasma', style: { marginTop: '6px', display: 'block' }, onClick: () => tirar(sel) }, 'Tirar do preparo') : null));
+    // Antes de qualquer passo: dica de por onde começar (o que demora mais).
+    const comecando = varias && lista.every(({ pa }) => !pa.passo && !pa.pronto);
+    const maisLongo = lista.slice().sort((a, b) => tempoTotal(b.p) - tempoTotal(a.p))[0];
+    trocar(dicaOrdem, comecando ? h('div', { class: 'caixa dica' }, h('b', null, '💡 Por onde começar'),
+      `Comece por ${maisLongo.p.nome} (${esperaHoras(maisLongo.p) ? textoEspera(esperaHoras(maisLongo.p)) : formatarMinutos(maisLongo.p.tempoMin || 0)}): é o que mais demora. Toque nas abas para alternar entre as panelas.`) : null);
+    desenharPasso(sel, lista); desenharIngs(sel);
   }
-  const irPasso = (i) => { alterar('cozinhando', (c) => { c.passo = i; }); desenharPasso(); window.scrollTo({ top: passoBox.offsetTop - 70, behavior: 'smooth' }); };
+
+  function desenharPasso({ pa, p }, lista) {
+    const n = p.passos.length;
+    if (!n) { trocar(passoBox, h('p', null, 'Este prato não tem passos cadastrados.'), linkYoutube(p)); return; }
+    const i = clamp(pa.passo || 0, 0, n - 1), texto = p.passos[i], varias = lista.length > 1;
+    const ultimo = i === n - 1;
+    const proxima = lista.find((x) => x.pa.id !== pa.id && !x.pa.pronto);
+    trocar(passoBox,
+      h('div', { class: 'num' }, `${varias ? p.nome + ' · ' : ''}Passo ${i + 1} de ${n}`),
+      h('p', null, texto),
+      temposNoPasso(texto).map((t) => h('button', { class: 'btn milho bloco', style: { marginBottom: '8px' }, onClick: () => {
+        const ok = criarTimer(t.seg, `${varias ? p.nome + ' · ' : ''}Passo ${i + 1}: ${t.rotulo}`);
+        toast(ok ? `⏱️ Timer de ${formatarMinutos(Math.round(t.seg / 60))} ligado` : 'Esse timer já está correndo ⏱️'); desenharTimers(); } },
+        `⏱️ Timer de ${formatarMinutos(Math.round(t.seg / 60))}`)),
+      ultimo && !varias ? h('small', { style: { color: 'var(--suave)', marginBottom: '8px' } }, 'Último passo! Toque em “Terminei” quando acabar.') : null,
+      ultimo && varias && !pa.pronto ? h('button', { class: 'btn folha bloco', style: { marginBottom: '8px' }, onClick: () => marcarPronto(pa.id, proxima) },
+        `✅ ${p.nome} pronto${proxima ? ` · ir para ${proxima.p.nome}` : ''}`) : null,
+      h('div', { class: 'btns dois', style: { margin: 0 } },
+        h('button', { class: 'btn', disabled: i === 0, onClick: () => irPasso(pa.id, i - 1) }, '◀ Anterior'),
+        h('button', { class: 'btn primario', disabled: ultimo, onClick: () => irPasso(pa.id, i + 1) }, 'Próximo ▶')));
+  }
+  const irPasso = (id, i) => {
+    alterar('cozinhando', (c) => { const pa = c.panelas.find((x) => x.id === id); if (pa) pa.passo = i; });
+    desenhar(); window.scrollTo({ top: passoBox.offsetTop - 70, behavior: 'smooth' });
+  };
+  function marcarPronto(id, proxima) {
+    alterar('cozinhando', (c) => { const pa = c.panelas.find((x) => x.id === id); if (pa) pa.pronto = true; if (proxima) c.ativa = proxima.pa.id; });
+    toast(proxima ? `✅ Pronto! Agora: ${proxima.p.nome}` : '✅ Tudo pronto! Toque em “Terminei” para registrar.');
+    desenhar();
+  }
+  async function tirar({ pa, p }) {
+    if (!(await confirmar(`Tirar ${p.nome} do preparo?`, 'As outras panelas continuam como estão.', 'Tirar', 'Manter'))) return;
+    tirarPanela(pa.id); desenhar();
+  }
+
+  function desenharIngs({ pa, p }) {
+    trocar(ingsBox, p.ingredientes.length ? h('details', { class: 'card' }, h('summary', null, `🧺 Ingredientes${pratosDe(ler('cozinhando')).length > 1 ? ` · ${p.nome}` : ''}`),
+      h('ul', { class: 'ings' }, p.ingredientes.map((i) => h('li', null, textoIngrediente(i, pa.porcoes / (p.rendimento || 2)))))) : null);
+  }
 
   function desenharTimers() {
     const c = ler('cozinhando');
@@ -179,9 +248,13 @@ export function telaCozinhando() {
   };
 
   async function terminar() {
-    let minutos = Math.max(1, Math.round((Date.now() - coz.inicio) / 60000));
+    const { c, lista } = estado();
+    // O histórico guarda a refeição (os pratos principais); arroz e feijão de acompanhamento não contam como "prato feito".
+    const principais = lista.filter((x) => tipoDe(x.p) === 'principal');
+    const registrar = (principais.length ? principais : lista).map((x) => x.p);
+    let minutos = Math.max(1, Math.round((Date.now() - c.inicio) / 60000));
     if (minutos > 240) {
-      const campo = h('input', { class: 'campo', type: 'number', inputmode: 'numeric', min: '1', value: String(p.tempoMin || 60) });
+      const campo = h('input', { class: 'campo', type: 'number', inputmode: 'numeric', min: '1', value: String(registrar[0].tempoMin || 60) });
       const r = await dialogo({
         titulo: 'Esqueceu de terminar? 😄', texto: `O cronômetro marcou ${formatarMinutos(minutos)}. Quantos minutos levou de verdade?`, conteudo: campo,
         botoes: [{ rotulo: 'Corrigir', classe: 'primario', valor: () => { const v = parseInt(campo.value, 10); return v > 0 ? v : undefined; } },
@@ -193,35 +266,35 @@ export function telaCozinhando() {
     let nota = 0;
     const est = estrelasEl(0, (v) => { nota = v; }, { grandes: true });
     const r = await dialogo({
-      titulo: 'Ficou bom? 😋', texto: p.nome, conteudo: h('div', { style: { textAlign: 'center', margin: '8px 0' } }, est),
+      titulo: 'Ficou bom? 😋', texto: registrar.map((p) => p.nome).join(' + '), conteudo: h('div', { style: { textAlign: 'center', margin: '8px 0' } }, est),
       botoes: [{ rotulo: 'Salvar', classe: 'primario', valor: () => { if (!nota) { toast('Toque nas estrelas para dar a nota'); return undefined; } return nota; } },
         { rotulo: 'Pular a nota', classe: 'fantasma', valor: 0 }],
     });
     if (r == null) return;
-    registrarRefeicao(p, r || null, minutos);
+    for (const p of registrar) registrarRefeicao(p, r || null, minutos);
     pararAlarme(); gravar('cozinhando', null);
-    if (r >= 4 && !favorito(p.id)) {
-      if (await confirmar('Que delícia!', `Quer adicionar ${p.nome} aos seus favoritos?`, '❤️ Sim, adicionar', 'Agora não')) favoritar(p.id, r);
+    const semFav = registrar.filter((p) => !favorito(p.id));
+    if (r >= 4 && semFav.length) {
+      const nomes = semFav.map((p) => p.nome).join(' e ');
+      if (await confirmar('Que delícia!', `Quer adicionar ${nomes} aos seus favoritos?`, '❤️ Sim, adicionar', 'Agora não')) semFav.forEach((p) => favoritar(p.id, r));
     }
     toast('Refeição registrada no histórico 📖');
     substituir('historico');
   }
   async function cancelar() {
-    if (!(await confirmar('Cancelar o preparo?', 'O cronômetro e os timers serão descartados (nada vai para o histórico).', 'Cancelar preparo', 'Continuar cozinhando'))) return;
+    if (!(await confirmar('Cancelar o preparo?', 'O cronômetro, as panelas e os timers serão descartados (nada vai para o histórico).', 'Cancelar preparo', 'Continuar cozinhando'))) return;
     pararAlarme(); gravar('cozinhando', null); substituir('inicio');
   }
 
   el.append(
-    h('div', { class: 'coz-topo' }, imgPrato(p), h('div', null, h('h2', null, p.nome), h('small', { style: { color: 'var(--suave)' } }, porcoesTxt(coz.porcoes)))),
+    abas, cabeca,
     relogio, h('small', null, `de preparo · começou às ${inicioTxt}`),
-    passoBox, timersBox,
-    p.ingredientes.length ? h('details', { class: 'card' }, h('summary', null, '🧺 Ver ingredientes'),
-      h('ul', { class: 'ings' }, p.ingredientes.map((i) => h('li', null, textoIngrediente(i, coz.porcoes / (p.rendimento || 2)))))) : null,
+    dicaOrdem, passoBox, timersBox, ingsBox,
     h('div', { class: 'btns' },
       h('button', { class: 'btn folha bloco', onClick: terminar }, '✅ Terminei'),
       h('button', { class: 'btn pequeno fantasma', onClick: cancelar }, 'Cancelar preparo')),
   );
-  desenharPasso(); tique();
+  desenhar(); tique();
   const id = setInterval(tique, 1000);
   return { el, limpar: () => clearInterval(id) };
 }
